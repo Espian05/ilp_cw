@@ -1,0 +1,134 @@
+### GET actuator/health
+GET http://localhost:8080/actuator/health
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 400");
+    });
+
+    client.test("Response is as expected", function() {
+        client.assert(response.body === "{ \"status\" : \"UP\" }", "Response body is not as expected")
+    });
+%}
+
+### POST nextPosition normal
+POST http://localhost:8080/api/v1/nextPosition
+Content-Type: application/json
+
+{
+    "start": {
+        "lng": 37.5665,
+        "lat": 126.9780
+    },
+    "angle": 90
+}
+
+### POST nextPosition swapped
+POST http://localhost:8080/api/v1/nextPosition
+Content-Type: application/json
+
+{
+  "start": {
+    "lat": 126.9780,
+    "lng": 37.5665
+  },
+  "angle": 90
+}
+
+### POST nextPosition swapped
+POST http://localhost:8080/api/v1/nextPosition
+Content-Type: application/json
+
+{
+  "start": {
+    "lat": 0,
+    "lng": 0
+  },
+  "angle": 0
+}
+
+### POST isInRegion
+POST http://localhost:8080/api/v1/isInRegion
+Content-Type: application/json
+
+{
+  "position": {
+    "lng": 1.234,
+    "lat": 1.222
+  },
+  "region": {
+    "name": "central",
+    "vertices": [
+      {
+        "lng": -3.192473,
+        "lat": 55.946233
+      },
+      {
+        "lng": -3.192473,
+        "lat": 55.942617
+      },
+      {
+        "lng": -3.184319,
+        "lat": 55.942617
+      },
+      {
+        "lng": -3.184319,
+        "lat": 55.946233
+      },
+      {
+        "lng": -3.192473,
+        "lat": 55.946233
+      }
+    ]
+  }
+}
+
+### POST isInRegion
+POST http://localhost:8080/api/v1/isInRegion
+Content-Type: application/json
+
+{
+  "position": {
+    "lng": 0,
+    "lat": 0
+  },
+  "region": {
+    "name": "test",
+    "vertices": [
+      {
+        "lng": -1,
+        "lat": -1
+      },
+      {
+        "lng": 1,
+        "lat": -1
+      },
+      {
+        "lng": 1,
+        "lat": 1
+      },
+      {
+        "lng": -1,
+        "lat": 1
+      },
+      {
+        "lng": -1,
+        "lat": -1
+      }
+    ]
+  }
+}
+
+### POST isInRegion no vertices (no bitches?)
+POST http://localhost:8080/api/v1/isInRegion
+Content-Type: application/json
+
+{
+  "position": {
+    "lng": 1.234,
+    "lat": 1.222
+  },
+  "region": {
+    "name": "central"
+  }
+}
