@@ -2,6 +2,7 @@ package ilp.ilp_cw2.controllers;
 
 import ilp.ilp_cw2.dtos.RestrictedArea;
 import ilp.ilp_cw2.dtos.ServicePoint;
+import ilp.ilp_cw2.types.LngLatAlt;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -55,7 +56,7 @@ public class LessBasicController {
         return ResponseEntity.ok(response.toString());
     }
 
-    @GetMapping("restricted-areas-geo")
+    @GetMapping("/restricted-areas-geo")
     public ResponseEntity<String> getRestrictedAreas() throws JSONException {
         RestrictedArea[] restricted_areas =
                 restTemplate.getForObject(ilpEndpoint + "/restricted-areas", RestrictedArea[].class);
@@ -63,6 +64,27 @@ public class LessBasicController {
         JSONObject response = new JSONObject();
         response.put("type", "FeatureCollection");
 
+        JSONArray featuresArray = new JSONArray();
+        for (RestrictedArea restricted_area : restricted_areas) {
+            JSONObject feature = new JSONObject();
+            feature.put("type", "Feature");
+            feature.put("properties", new JSONObject());
+            JSONObject geometry = new JSONObject();
+            JSONArray coordinates = new JSONArray();
+            JSONArray inner_coordinates = new JSONArray();
+            for (LngLatAlt lnglatalt : restricted_area.getVertices()) {
+                JSONArray coordinate = new JSONArray();
+                coordinate.put(lnglatalt.lng);
+                coordinate.put(lnglatalt.lat);
+                inner_coordinates.put(coordinate);
+            }
+            coordinates.put(inner_coordinates);
+            geometry.put("coordinates", coordinates);
+            geometry.put("type", "Polygon");
+            feature.put("geometry", geometry);
+            featuresArray.put(feature);
+        }
+        response.put("features", featuresArray);
 
         return ResponseEntity.ok(response.toString());
     }
