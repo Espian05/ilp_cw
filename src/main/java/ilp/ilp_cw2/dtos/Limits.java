@@ -9,10 +9,4 @@ public class Limits {
 
     @JsonProperty(value = "upper")
     public int upper;
-
-    @JsonCreator
-    public Limits(int lower, int upper) {
-        this.lower = lower;
-        this.upper = upper;
-    }
 }

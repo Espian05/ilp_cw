@@ -1,5 +1,7 @@
 package ilp.ilp_cw2.controllers;
 
+import ilp.ilp_cw2.dtos.AttributeQuery;
+import ilp.ilp_cw2.dtos.Drone;
 import ilp.ilp_cw2.dtos.RestrictedArea;
 import ilp.ilp_cw2.dtos.ServicePoint;
 import ilp.ilp_cw2.types.LngLatAlt;
@@ -8,9 +10,11 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.Arrays;
+import java.util.List;
 
 @RestController
 public class LessBasicController {
@@ -23,6 +27,92 @@ public class LessBasicController {
     @Autowired
     LessBasicController(String ilpEndpoint) {
         this.ilpEndpoint = ilpEndpoint;
+    }
+
+    @GetMapping(endpointStart + "/dronesWithCooling/{state}")
+    public ResponseEntity<List<String>> dronesWithCooling(@PathVariable boolean state) {
+        Drone[] drones = restTemplate.getForObject(ilpEndpoint + "/drones", Drone[].class);
+
+        return ResponseEntity.ok(Arrays.stream(drones).filter(drone -> {
+                return drone.capability != null && drone.capability.isCooling() == state;
+            }
+        ).map(drone -> {
+            return drone.getId();
+        }).toList());
+    }
+
+    @GetMapping(endpointStart + "/droneDetails/{id}")
+    public ResponseEntity<Drone> droneDetails(@PathVariable String id) {
+        Drone[] drones = restTemplate.getForObject(ilpEndpoint + "/drones", Drone[].class);
+
+        return ResponseEntity.ok(Arrays.stream(drones).filter(drone -> { return drone.id.equals(id); }).toList().getFirst());
+    }
+
+    @GetMapping(endpointStart + "/queryAsPath/{attribute}/{value}")
+    public ResponseEntity<List<String>> queryAsPath(@PathVariable String attribute, @PathVariable String value) {
+        Drone[] drones = restTemplate.getForObject(ilpEndpoint + "/drones", Drone[].class);
+
+        return ResponseEntity.ok(Arrays.stream(drones).filter(drone -> {
+            return switch (attribute) {
+                case "cooling" -> drone.capability.isCooling() == Boolean.parseBoolean(value);
+                case "heating" -> drone.capability.isHeating() == Boolean.parseBoolean(value);
+                case "capacity" -> drone.capability.getCapacity() == Double.parseDouble(value);
+                case "maxMoves" -> drone.capability.getMaxMoves() == Integer.parseInt(value);
+                case "costPerMove" -> drone.capability.getCostPerMove() == Double.parseDouble(value);
+                case "costInitial" -> drone.capability.getCostInitial() == Double.parseDouble(value);
+                case "costFinal" -> drone.capability.getCostFinal() == Double.parseDouble(value);
+                default -> false;
+            };
+        }).map(drone -> { return drone.id; }).toList());
+    }
+
+    @PostMapping(endpointStart + "/query")
+    public ResponseEntity<List<String>> query(@RequestBody AttributeQuery[] attributeQueries) {
+        Drone[] drones = restTemplate.getForObject(ilpEndpoint + "/drones", Drone[].class);
+
+        return ResponseEntity.ok(Arrays.stream(drones).filter(drone -> {
+            for (AttributeQuery attributeQuery : attributeQueries) {
+                boolean matchesQuery = switch (attributeQuery.getOperator()) {
+                    case "=" -> switch (attributeQuery.getAttribute()) {
+                        case "cooling" -> drone.capability.isCooling() == Boolean.parseBoolean(attributeQuery.getValue());
+                        case "heating" -> drone.capability.isHeating() == Boolean.parseBoolean(attributeQuery.getValue());
+                        case "capacity" -> drone.capability.getCapacity() == Double.parseDouble(attributeQuery.getValue());
+                        case "maxMoves" -> drone.capability.getMaxMoves() == Integer.parseInt(attributeQuery.getValue());
+                        case "costPerMove" -> drone.capability.getCostPerMove() == Double.parseDouble(attributeQuery.getValue());
+                        case "costInitial" -> drone.capability.getCostInitial() == Double.parseDouble(attributeQuery.getValue());
+                        case "costFinal" -> drone.capability.getCostFinal() == Double.parseDouble(attributeQuery.getValue());
+                        default -> false;
+                    };
+                    case "!=" -> switch (attributeQuery.getAttribute()) {
+                        case "capacity" -> drone.capability.getCapacity() != Double.parseDouble(attributeQuery.getValue());
+                        case "maxMoves" -> drone.capability.getMaxMoves() != Integer.parseInt(attributeQuery.getValue());
+                        case "costPerMove" -> drone.capability.getCostPerMove() != Double.parseDouble(attributeQuery.getValue());
+                        case "costInitial" -> drone.capability.getCostInitial() != Double.parseDouble(attributeQuery.getValue());
+                        case "costFinal" -> drone.capability.getCostFinal() != Double.parseDouble(attributeQuery.getValue());
+                        default -> false;
+                    };
+                    case ">" -> switch (attributeQuery.getAttribute()) {
+                        case "capacity" -> drone.capability.getCapacity() > Double.parseDouble(attributeQuery.getValue());
+                        case "maxMoves" -> drone.capability.getMaxMoves() > Integer.parseInt(attributeQuery.getValue());
+                        case "costPerMove" -> drone.capability.getCostPerMove() > Double.parseDouble(attributeQuery.getValue());
+                        case "costInitial" -> drone.capability.getCostInitial() > Double.parseDouble(attributeQuery.getValue());
+                        case "costFinal" -> drone.capability.getCostFinal() > Double.parseDouble(attributeQuery.getValue());
+                        default -> false;
+                    };
+                    case "<" -> switch (attributeQuery.getAttribute()) {
+                        case "capacity" -> drone.capability.getCapacity() < Double.parseDouble(attributeQuery.getValue());
+                        case "maxMoves" -> drone.capability.getMaxMoves() < Integer.parseInt(attributeQuery.getValue());
+                        case "costPerMove" -> drone.capability.getCostPerMove() < Double.parseDouble(attributeQuery.getValue());
+                        case "costInitial" -> drone.capability.getCostInitial() < Double.parseDouble(attributeQuery.getValue());
+                        case "costFinal" -> drone.capability.getCostFinal() < Double.parseDouble(attributeQuery.getValue());
+                        default -> false;
+                    };
+                    default -> false;
+                };
+                if (!matchesQuery) return false;
+            }
+            return true;
+        }).map(drone -> { return drone.id; }).toList());
     }
 
     @GetMapping("/service-points-geo")

@@ -19,13 +19,6 @@ public class ServicePoint {
     @JsonProperty(value = "location")
     public LngLatAlt location;
 
-    @JsonCreator
-    public ServicePoint(String name, int id, LngLatAlt location) {
-        this.name = name;
-        this.id = id;
-        this.location = location;
-    }
-
     @JsonIgnore
     @Override
     public String toString() {
