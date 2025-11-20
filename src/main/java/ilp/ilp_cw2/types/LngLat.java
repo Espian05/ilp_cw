@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
 
+import static java.lang.Math.sqrt;
+
 @Data
 @Builder
 public class LngLat {
@@ -68,4 +70,14 @@ public class LngLat {
      */
     @JsonIgnore
     public boolean equals(LngLat other) { return lat == other.lat && lng == other.lng; }
+
+    /**
+     * Returns distance between this LngLat and another
+     * @param other The other LngLat
+     * @return Distance
+     */
+    @JsonIgnore
+    public double getDistance(LngLat other) {
+        return sqrt(other.lng * lng + other.lat * lat);
+    }
 }

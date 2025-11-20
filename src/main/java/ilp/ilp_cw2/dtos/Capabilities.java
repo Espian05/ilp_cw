@@ -8,23 +8,23 @@ import lombok.Data;
 @Builder
 public class Capabilities {
     @JsonProperty(value = "cooling")
-    public boolean cooling;
+    private boolean cooling;
 
     @JsonProperty(value = "heating")
-    public boolean heating;
+    private boolean heating;
 
     @JsonProperty(value = "capacity")
-    public double capacity;
+    private double capacity;
 
     @JsonProperty(value = "maxMoves")
-    public int maxMoves;
+    private int maxMoves;
 
     @JsonProperty(value = "costPerMove")
-    public double costPerMove;
+    private double costPerMove;
 
     @JsonProperty(value = "costInitial")
-    public double costInitial;
+    private double costInitial;
 
     @JsonProperty(value = "costFinal")
-    public double costFinal;
+    private double costFinal;
 }

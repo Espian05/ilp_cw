@@ -1,18 +1,19 @@
 package ilp.ilp_cw2.dtos;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Builder;
 import lombok.Data;
 
+import java.time.DayOfWeek;
+import java.time.LocalTime;
+
 @Data
-@Builder
 public class Availability {
     @JsonProperty(value = "dayOfWeek")
-    public String dayOfWeek;
+    private DayOfWeek dayOfWeek;
 
     @JsonProperty(value = "from")
-    public Time from;
+    private LocalTime from;
 
     @JsonProperty(value = "until")
-    public Time until;
+    private LocalTime until;
 }

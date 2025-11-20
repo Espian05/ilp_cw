@@ -1,9 +1,7 @@
 package ilp.ilp_cw2.controllers;
 
-import ilp.ilp_cw2.dtos.AttributeQuery;
-import ilp.ilp_cw2.dtos.Drone;
-import ilp.ilp_cw2.dtos.RestrictedArea;
-import ilp.ilp_cw2.dtos.ServicePoint;
+import ilp.ilp_cw2.dtos.*;
+import ilp.ilp_cw2.types.LngLat;
 import ilp.ilp_cw2.types.LngLatAlt;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -13,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -28,6 +27,9 @@ public class LessBasicController {
     LessBasicController(String ilpEndpoint) {
         this.ilpEndpoint = ilpEndpoint;
     }
+
+    // Debug booleans
+    boolean queryAvailableDronesDebug = true;
 
     @GetMapping(endpointStart + "/dronesWithCooling/{state}")
     public ResponseEntity<List<String>> dronesWithCooling(@PathVariable boolean state) {
@@ -111,6 +113,116 @@ public class LessBasicController {
                 };
                 if (!matchesQuery) return false;
             }
+            return true;
+        }).map(drone -> { return drone.id; }).toList());
+    }
+
+    @PostMapping(endpointStart + "/queryAvailableDrones")
+    public ResponseEntity<List<String>> queryAvailableDrones(@RequestBody MedDispatchRec[] medDispatchRecs) {
+        Drone[] drones = restTemplate.getForObject(ilpEndpoint + "/drones", Drone[].class);
+        DronesForServicePoint[] dronesForServicePoints = restTemplate.getForObject(ilpEndpoint + "/drones-for-service-points", DronesForServicePoint[].class);
+        ServicePoint[] servicePoints = restTemplate.getForObject(ilpEndpoint + "/service-points", ServicePoint[].class);
+
+        return ResponseEntity.ok(Arrays.stream(drones).filter(drone -> {
+            List<DronesAvailability> droneAvailabilities = new ArrayList<>();
+            for (DronesForServicePoint dronesForServicePoint : dronesForServicePoints) {
+                for (DronesAvailability availability : dronesForServicePoint.getDrones()) {
+                    if (availability.getId().equals(drone.id)) {
+                        droneAvailabilities.add(availability);
+                    }
+                }
+            }
+
+            // Only want to return true if a drone matches at least one slot for each medDispatchRed
+            // and fulfills all requirements
+            // For every record
+            // The service point the drone is at when it can fulfill all of the medDispatchRecs
+            LngLat servicePointLocation;
+            for (MedDispatchRec medDispatchRec : medDispatchRecs) {
+                boolean matchesThisRecord = false;
+
+                // For each list of availability at each service point this drone services
+                for (DronesAvailability droneAvailability : droneAvailabilities) {
+                    // For each availability on a given day in a given schedule
+                    for (Availability availability : droneAvailability.getAvailability()) {
+                        if (!medDispatchRec.getDate().getDayOfWeek().equals(availability.getDayOfWeek())) continue;
+                        if (availability.getFrom().isAfter(medDispatchRec.getTime())) continue;
+                        if (availability.getUntil().isBefore(medDispatchRec.getTime())) continue;
+                        servicePointLocation = ;
+                        matchesThisRecord = true;
+                        break;
+                    }
+                    if (matchesThisRecord) {
+                        if (queryAvailableDronesDebug)
+                            System.out.println("Drone " + drone.id + " has matching availability with medDispatchRec " + medDispatchRec.getId());
+                        break;
+                    }
+                }
+
+                if (!matchesThisRecord) {
+                    if (queryAvailableDronesDebug)
+                        System.out.println("Drone " + drone.id + " does not have matching availability with with medDispatchRec " + medDispatchRec.getId());
+                    return false;
+                }
+
+                // Now check through all requirements for this medDispatchRec
+                Requirements requirements = medDispatchRec.getRequirements();
+                if (requirements.getCooling() != null)
+                    if (requirements.getCooling() != drone.capability.isCooling()) {
+                        if (queryAvailableDronesDebug)
+                            System.out.println("Drone " + drone.id + " does not match the cooling requirement with medDispatchRec " + medDispatchRec.getId());
+                        return false;
+                    }
+                if (requirements.getHeating() != null)
+                    if (requirements.getHeating() != drone.capability.isHeating()) {
+                        if (queryAvailableDronesDebug)
+                            System.out.println("Drone " + drone.id + " does not match the heating requirement with medDispatchRec " + medDispatchRec.getId());
+                        return false;
+                    }
+
+                if (queryAvailableDronesDebug)
+                    System.out.println("Drone " + drone.id + " has matching heating/cooling with medDispatchRec " + medDispatchRec.getId());
+            }
+
+            // Now that we know the individual requirements for each medDispatchRec are satisfied,
+            // we can look at the total capacity
+            double totalCapacityNeeded = 0;
+            for (MedDispatchRec medDispatchRec : medDispatchRecs) {
+                totalCapacityNeeded += medDispatchRec.getRequirements().getCapacity();
+            }
+            if (totalCapacityNeeded > drone.capability.getCapacity()) {
+                if (queryAvailableDronesDebug)
+                    System.out.println("Drone " + drone.id + " does not have the capacity needed ( " + drone.capability.getCapacity() + " < " + totalCapacityNeeded + " )");
+                return false;
+            }
+
+            // ArrayList<Drone> requirementDrones = new ArrayList<>();
+            // ArrayList<String> timeDrones = new ArrayList<>();
+            // requirementDrones.stream().filter(drone -> { return timeDrones.contains(drone.id); });
+
+            // Now we know it also has the capacity, so we can finally look at the maxCost
+            // (distance(servicePoint, delivery)/step) × costPerMove + costInitial + costFinal
+            double totalCost = 0;
+            boolean totalCostNeeded = false;
+            for (MedDispatchRec medDispatchRec : medDispatchRecs) {
+                if (medDispatchRec.getRequirements().getMaxCost() != null) totalCostNeeded = true;
+                //totalCost += distance
+            }
+
+            if (totalCostNeeded) {
+                for (MedDispatchRec medDispatchRec : medDispatchRecs) {
+                    if (totalCost > medDispatchRec.getRequirements().getMaxCost()) {
+                        if (queryAvailableDronesDebug)
+                            System.out.println("Max cost is too high for medDispatchRec " +
+                                    medDispatchRec.getId() + " ( " + totalCost + " > " +
+                                    medDispatchRec.getRequirements().getMaxCost() + ")");
+                        return false;
+                    }
+                }
+            }
+
+            if (queryAvailableDronesDebug)
+                System.out.println("Drone " + drone.id + " matches with all medDispatchRecs");
             return true;
         }).map(drone -> { return drone.id; }).toList());
     }

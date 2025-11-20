@@ -132,3 +132,59 @@ Content-Type: application/json
     "name": "central"
   }
 }
+
+### POST query
+POST http://localhost:8080/api/v1/query
+Content-Type: application/json
+
+
+[
+    {
+        "attribute": "capacity",
+        "operator": "<",
+        "value": "8"
+    },
+    {
+        "attribute": "cooling",
+        "operator": "=",
+        "value": "true"
+    }
+]
+
+### POST query for meddispatch 1 record
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 0,
+    "date": "2025-11-18",
+    "time": "15:00",
+    "requirements": {
+      "capacity": 1.0
+    }
+  }
+]
+
+### POST query for meddispatch 2 records
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+    {
+      "id": 0,
+      "date": "2025-11-18",
+      "time": "15:00",
+      "requirements": {
+        "capacity": 1.0
+      }
+    },
+    {
+      "id": 1,
+      "date": "2025-11-19",
+      "time": "09:00",
+      "requirements": {
+        "capacity": 1.0
+      }
+    }
+]
