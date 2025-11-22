@@ -3,6 +3,9 @@ package ilp.ilp_cw2.controllers;
 import ilp.ilp_cw2.dtos.*;
 import ilp.ilp_cw2.types.LngLat;
 import ilp.ilp_cw2.types.LngLatAlt;
+import ilp.ilp_cw2.utils.AStar;
+import ilp.ilp_cw2.utils.GeoJson;
+import ilp.ilp_cw2.utils.Pair;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -148,7 +151,6 @@ public class LessBasicController {
                         if (!medDispatchRec.getDate().getDayOfWeek().equals(availability.getDayOfWeek())) continue;
                         if (availability.getFrom().isAfter(medDispatchRec.getTime())) continue;
                         if (availability.getUntil().isBefore(medDispatchRec.getTime())) continue;
-                        servicePointLocation = ;
                         matchesThisRecord = true;
                         break;
                     }
@@ -289,5 +291,29 @@ public class LessBasicController {
         response.put("features", featuresArray);
 
         return ResponseEntity.ok(response.toString());
+    }
+
+    @GetMapping("/A_Star_Test")
+    public ResponseEntity<String> aStarTest() throws JSONException {
+        RestrictedArea[] restrictedAreas = restTemplate.getForObject(ilpEndpoint + "/restricted-areas", RestrictedArea[].class);
+
+        LngLat appleton = new LngLat(-3.1863580788986368, 55.94468066708487);
+        LngLat oceanTerminal = new LngLat(-3.17732611501824, 55.981186279333656);
+
+        LngLat hamilton = new LngLat(-4.035783909780434, 55.7648450808785);
+        LngLat brightonStreet = new LngLat(-3.1893772182582154, 55.946378903626425);
+
+        LngLat annoyingPlace = new LngLat(-3.1875123178551235, 55.945254809917685);
+        LngLat annoyingPlace2 = new LngLat(-3.1893837696125047, 55.94540438103067);
+
+        List<List<LngLat>> paths = new ArrayList<>();
+
+        //paths.add(AStar.AStarPathWithCost(appleton, oceanTerminal, 100, restrictedAreas).first);
+        paths.add(AStar.AStarPathWithCost(appleton, brightonStreet, 100, restrictedAreas).first);
+        paths.add(AStar.AStarPathWithCost(appleton, annoyingPlace, 100, restrictedAreas).first);
+        paths.add(AStar.AStarPathWithCost(appleton, annoyingPlace2, 100, restrictedAreas).first);
+        //paths.add(AStar.AStarPathWithCost(brightonStreet, oceanTerminal, 100, restrictedAreas).first);
+
+        return ResponseEntity.ok(GeoJson.toGeoJsonWithRegions(paths, restrictedAreas));
     }
 }

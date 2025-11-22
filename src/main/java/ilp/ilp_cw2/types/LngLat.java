@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
 
-import static java.lang.Math.sqrt;
+import java.util.Objects;
 
 @Data
 @Builder
@@ -22,6 +22,8 @@ public class LngLat {
         this.lng = lng;
         this.lat = lat;
     }
+
+    private static final double GRID = 0.000015;
 
     /**
      * Returns whether this type has valid members or not
@@ -69,15 +71,25 @@ public class LngLat {
      * @return Whether they are equal
      */
     @JsonIgnore
-    public boolean equals(LngLat other) { return lat == other.lat && lng == other.lng; }
+    @Override
+    public boolean equals(Object other) {
+        if (!(other instanceof LngLat)) {
+            return false;
+        } else {
+            return lat == ((LngLat) other).lat && lng == ((LngLat) other).lng;
+        }
+    }
 
-    /**
-     * Returns distance between this LngLat and another
-     * @param other The other LngLat
-     * @return Distance
-     */
     @JsonIgnore
-    public double getDistance(LngLat other) {
-        return sqrt(other.lng * lng + other.lat * lat);
+    @Override
+    public int hashCode() {
+        return Objects.hash(lng, lat);
+    }
+
+    @JsonIgnore
+    public LngLat getRounded() {
+        double slng = Math.round(lng / GRID) * GRID;
+        double slat = Math.round(lat / GRID) * GRID;
+        return new LngLat(slng, slat);
     }
 }

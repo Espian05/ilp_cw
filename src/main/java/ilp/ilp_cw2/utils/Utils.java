@@ -13,8 +13,8 @@ public class Utils {
      * @return double distance between the points
      */
     public static double getDistance(LngLat position1, LngLat position2) {
-        return Math.sqrt(Math.pow(position1.lat - position2.lat, 2) +
-                Math.pow(position1.lng - position2.lng, 2));
+        return Math.sqrt(Math.pow(position1.lng - position2.lng, 2) +
+                Math.pow(position1.lat - position2.lat, 2));
     }
 
     /**
@@ -25,7 +25,7 @@ public class Utils {
      * @return boolean
      */
     public static boolean isClose(LngLat position1, LngLat position2) {
-        return Math.abs(getDistance(position1, position2)) < 0.00015;
+        return getDistance(position1, position2) <= 0.00015;
     }
 
     /**
