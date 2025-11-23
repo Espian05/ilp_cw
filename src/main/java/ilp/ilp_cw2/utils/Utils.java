@@ -1,8 +1,13 @@
 package ilp.ilp_cw2.utils;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import ilp.ilp_cw2.dtos.RestrictedArea;
+import ilp.ilp_cw2.raycasting.Raycasting;
 import ilp.ilp_cw2.types.LngLat;
 import ilp.ilp_cw2.types.Region;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class Utils {
     /**
@@ -127,5 +132,88 @@ public class Utils {
     private static double getGradient(LngLat position1, LngLat position2) {
         if (position1.lng == position2.lng) return Double.POSITIVE_INFINITY;
         return (position1.lat - position2.lat) / (position1.lng - position2.lng);
+    }
+
+    public static boolean isInRegions(Region[] regions, LngLat position) {
+        for (Region region : regions) {
+            if (isInRegion(region, position)) return true;
+        }
+        return false;
+    }
+
+    public static List<Region> restrictedAreasToRegions(RestrictedArea[] restrictedAreas) {
+        List<Region> regions = new ArrayList<>();
+
+        for (RestrictedArea restrictedArea : restrictedAreas) {
+            regions.add(new Region(restrictedArea.getName(),
+                    new ArrayList<>(
+                            restrictedArea.getVertices().stream().map(point -> new LngLat(point.lng, point.lat)).toList()
+                    )
+            ));
+        }
+
+        return regions;
+    }
+
+    public static boolean fpcEquality(double a, double b, double epsilon) {
+        return Math.abs(a - b) < epsilon;
+    }
+
+    public static boolean isInRegionRaycasting(Region region, LngLat position) {
+        // Convert region to a list of lines (assuming a valid region)
+        List<Raycasting.Line> lines = new ArrayList<>();
+        for (int i = 0; i < region.vertices.size() - 1; i++) {
+            lines.add(new Raycasting.Line(region.vertices.get(i), region.vertices.get(i + 1)));
+        }
+
+        // Initialise a long line
+        Raycasting.Line castLine = new Raycasting.Line(position, new LngLat(10000.0, 10000.0));
+
+        // Initialise result boolean
+        boolean inRegion = false;
+
+        // Loop through the region lines, checking for an intersection
+        // When one is found, flip the boolean
+        for (Raycasting.Line line : lines) {
+            if (Raycasting.findIntersectionPoint(line, castLine) != null) inRegion = !inRegion;
+        }
+
+        return inRegion;
+    }
+
+    public static boolean isInRegionsRaycasting(Region[] regions, LngLat position) {
+        for (Region region : regions) {
+            if (isInRegionRaycasting(region, position)) return true;
+        }
+        return false;
+    }
+
+    public static List<Raycasting.Line> regionsToLines(Region[] regions) {
+        List<Raycasting.Line> lines = new ArrayList<>();
+        for (Region region : regions) {
+            for (int i = 0; i < region.vertices.size() - 1; i++) {
+                lines.add(new Raycasting.Line(region.vertices.get(i), region.vertices.get(i + 1)));
+            }
+        }
+        return lines;
+    }
+
+    public static <E> List<List<E>> generatePerm(List<E> original) {
+        if (original.isEmpty()) {
+            List<List<E>> result = new ArrayList<>();
+            result.add(new ArrayList<>());
+            return result;
+        }
+        E firstElement = original.removeFirst();
+        List<List<E>> returnValue = new ArrayList<>();
+        List<List<E>> permutations = generatePerm(original);
+        for (List<E> smallerPermutated : permutations) {
+            for (int index = 0; index <= smallerPermutated.size(); index++) {
+                List<E> temp = new ArrayList<>(smallerPermutated);
+                temp.add(index, firstElement);
+                returnValue.add(temp);
+            }
+        }
+        return returnValue;
     }
 }

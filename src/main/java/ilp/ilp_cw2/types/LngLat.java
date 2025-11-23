@@ -23,8 +23,6 @@ public class LngLat {
         this.lat = lat;
     }
 
-    private static final double GRID = 0.000015;
-
     /**
      * Returns whether this type has valid members or not
      * @return Validity
@@ -63,33 +61,5 @@ public class LngLat {
     @JsonIgnore
     public LngLat add(LngLat other) {
         return new LngLat(lng + other.lng, lat + other.lat);
-    }
-
-    /**
-     * Returns whether this LngLat is equal to another
-     * @param other The other LngLat
-     * @return Whether they are equal
-     */
-    @JsonIgnore
-    @Override
-    public boolean equals(Object other) {
-        if (!(other instanceof LngLat)) {
-            return false;
-        } else {
-            return lat == ((LngLat) other).lat && lng == ((LngLat) other).lng;
-        }
-    }
-
-    @JsonIgnore
-    @Override
-    public int hashCode() {
-        return Objects.hash(lng, lat);
-    }
-
-    @JsonIgnore
-    public LngLat getRounded() {
-        double slng = Math.round(lng / GRID) * GRID;
-        double slat = Math.round(lat / GRID) * GRID;
-        return new LngLat(slng, slat);
     }
 }

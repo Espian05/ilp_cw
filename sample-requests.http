@@ -176,7 +176,12 @@ Content-Type: application/json
       "date": "2025-11-18",
       "time": "15:00",
       "requirements": {
-        "capacity": 1.0
+        "capacity": 1.0,
+        "maxCost": 100
+      },
+      "delivery": {
+        "lng": -3.1893772182582154,
+        "lat": 55.946378903626425
       }
     },
     {
@@ -184,7 +189,12 @@ Content-Type: application/json
       "date": "2025-11-19",
       "time": "09:00",
       "requirements": {
-        "capacity": 1.0
+        "capacity": 1.0,
+        "maxCost": 100
+      },
+      "delivery": {
+        "lng": -3.1893772182582154,
+        "lat": 55.946378903626425
       }
     }
 ]

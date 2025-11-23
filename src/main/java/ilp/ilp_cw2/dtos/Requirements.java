@@ -1,5 +1,6 @@
 package ilp.ilp_cw2.dtos;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
@@ -16,4 +17,9 @@ public class Requirements {
 
     @JsonProperty(value = "maxCost")
     private Double maxCost;
+
+    @JsonIgnore
+    public boolean maxCostIsNull() {
+        return maxCost == null;
+    }
 }

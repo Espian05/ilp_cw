@@ -1,11 +1,14 @@
 package ilp.ilp_cw2.controllers;
 
 import ilp.ilp_cw2.dtos.*;
+import ilp.ilp_cw2.raycasting.Raycasting;
 import ilp.ilp_cw2.types.LngLat;
 import ilp.ilp_cw2.types.LngLatAlt;
+import ilp.ilp_cw2.types.Region;
 import ilp.ilp_cw2.utils.AStar;
 import ilp.ilp_cw2.utils.GeoJson;
 import ilp.ilp_cw2.utils.Pair;
+import ilp.ilp_cw2.utils.Utils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -127,31 +130,34 @@ public class LessBasicController {
         ServicePoint[] servicePoints = restTemplate.getForObject(ilpEndpoint + "/service-points", ServicePoint[].class);
 
         return ResponseEntity.ok(Arrays.stream(drones).filter(drone -> {
-            List<DronesAvailability> droneAvailabilities = new ArrayList<>();
+            List<Pair<DronesAvailability, Integer>> droneAvailabilityPairs = new ArrayList<>();
             for (DronesForServicePoint dronesForServicePoint : dronesForServicePoints) {
                 for (DronesAvailability availability : dronesForServicePoint.getDrones()) {
                     if (availability.getId().equals(drone.id)) {
-                        droneAvailabilities.add(availability);
+                        droneAvailabilityPairs.add(new Pair<>(availability, dronesForServicePoint.servicePointId));
                     }
                 }
             }
+
+            // The id of the service point that this drone can do these deliveries from
+            int servicePointId = 0;
 
             // Only want to return true if a drone matches at least one slot for each medDispatchRed
             // and fulfills all requirements
             // For every record
             // The service point the drone is at when it can fulfill all of the medDispatchRecs
-            LngLat servicePointLocation;
             for (MedDispatchRec medDispatchRec : medDispatchRecs) {
                 boolean matchesThisRecord = false;
 
                 // For each list of availability at each service point this drone services
-                for (DronesAvailability droneAvailability : droneAvailabilities) {
+                for (Pair<DronesAvailability, Integer> droneAvailabilityPair : droneAvailabilityPairs) {
                     // For each availability on a given day in a given schedule
-                    for (Availability availability : droneAvailability.getAvailability()) {
+                    for (Availability availability : droneAvailabilityPair.first.getAvailability()) {
                         if (!medDispatchRec.getDate().getDayOfWeek().equals(availability.getDayOfWeek())) continue;
                         if (availability.getFrom().isAfter(medDispatchRec.getTime())) continue;
                         if (availability.getUntil().isBefore(medDispatchRec.getTime())) continue;
                         matchesThisRecord = true;
+                        servicePointId = droneAvailabilityPair.second;
                         break;
                     }
                     if (matchesThisRecord) {
@@ -198,22 +204,33 @@ public class LessBasicController {
                 return false;
             }
 
-            // ArrayList<Drone> requirementDrones = new ArrayList<>();
-            // ArrayList<String> timeDrones = new ArrayList<>();
-            // requirementDrones.stream().filter(drone -> { return timeDrones.contains(drone.id); });
+            LngLatAlt lngLatAlt = new LngLatAlt(0, 0, 0);
+            for (ServicePoint servicePoint : servicePoints) {
+                if (servicePoint.id == servicePointId) {
+                    lngLatAlt = servicePoint.location;
+                }
+            }
 
             // Now we know it also has the capacity, so we can finally look at the maxCost
             // (distance(servicePoint, delivery)/step) × costPerMove + costInitial + costFinal
-            double totalCost = 0;
+            double totalDistance = 0;
             boolean totalCostNeeded = false;
             for (MedDispatchRec medDispatchRec : medDispatchRecs) {
                 if (medDispatchRec.getRequirements().getMaxCost() != null) totalCostNeeded = true;
-                //totalCost += distance
+                totalDistance += Utils.getDistance(new LngLat(lngLatAlt.lng, lngLatAlt.lat), medDispatchRec.getDelivery());
             }
+
+            double totalCost = totalDistance / 0.0015;
+            totalCost *= drone.capability.getCostPerMove();
+            totalCost += drone.capability.getCostInitial();
+            totalCost += drone.capability.getCostFinal();
+
+            double proRataCost = totalCost / medDispatchRecs.length;
 
             if (totalCostNeeded) {
                 for (MedDispatchRec medDispatchRec : medDispatchRecs) {
-                    if (totalCost > medDispatchRec.getRequirements().getMaxCost()) {
+                    if (medDispatchRec.getRequirements().maxCostIsNull()) continue;
+                    if (proRataCost > medDispatchRec.getRequirements().getMaxCost()) {
                         if (queryAvailableDronesDebug)
                             System.out.println("Max cost is too high for medDispatchRec " +
                                     medDispatchRec.getId() + " ( " + totalCost + " > " +
@@ -306,14 +323,29 @@ public class LessBasicController {
         LngLat annoyingPlace = new LngLat(-3.1875123178551235, 55.945254809917685);
         LngLat annoyingPlace2 = new LngLat(-3.1893837696125047, 55.94540438103067);
 
+        LngLat testPoint1 = new LngLat(-3.190552655673514, 55.943019164584655);
+        LngLat testPoint2 = new LngLat(-3.189387176308202, 55.94576879534256);
+
+        List<LngLat> testPoints = new ArrayList<>();
+        testPoints.add(appleton);
+        testPoints.add(brightonStreet);
+        testPoints.add(annoyingPlace);
+        testPoints.add(annoyingPlace2);
+        testPoints.add(testPoint1);
+        testPoints.add(testPoint2);
+
+        Region[] regions = Utils.restrictedAreasToRegions(restrictedAreas).toArray(new Region[0]);
+        List<Raycasting.Line> lines = Utils.regionsToLines(regions);
+
         List<List<LngLat>> paths = new ArrayList<>();
-
-        //paths.add(AStar.AStarPathWithCost(appleton, oceanTerminal, 100, restrictedAreas).first);
-        paths.add(AStar.AStarPathWithCost(appleton, brightonStreet, 100, restrictedAreas).first);
-        paths.add(AStar.AStarPathWithCost(appleton, annoyingPlace, 100, restrictedAreas).first);
-        paths.add(AStar.AStarPathWithCost(appleton, annoyingPlace2, 100, restrictedAreas).first);
-        //paths.add(AStar.AStarPathWithCost(brightonStreet, oceanTerminal, 100, restrictedAreas).first);
-
+        List<Pair<LngLat, LngLat>> pathPairs = new ArrayList<>();
+        for (List<LngLat> list : Utils.generatePerm(testPoints)) {
+            Pair<LngLat, LngLat> pair = new Pair<>(list.get(0), list.get(1));
+            if (pathPairs.contains(pair)) continue;
+            paths.add(AStar.AStarPathWithCost(pair.first, pair.second, 100, lines).first);
+            pathPairs.add(pair);
+        }
+        System.out.println("Done!");
         return ResponseEntity.ok(GeoJson.toGeoJsonWithRegions(paths, restrictedAreas));
     }
 }
