@@ -17,8 +17,8 @@ public class AStar {
     };
 
     private static final LngLat[] offsets = {
-            Utils.getNextPosition(new LngLat(0, 0), directionAngles[1]),
             Utils.getNextPosition(new LngLat(0, 0), directionAngles[0]),
+            Utils.getNextPosition(new LngLat(0, 0), directionAngles[1]),
             Utils.getNextPosition(new LngLat(0, 0), directionAngles[2]),
             Utils.getNextPosition(new LngLat(0, 0), directionAngles[3]),
             Utils.getNextPosition(new LngLat(0, 0), directionAngles[4]),
@@ -63,16 +63,16 @@ public class AStar {
         }
 
         public IntegerPosition changeDirection(int direction, int delta) {
-            IntegerPosition newPos = new IntegerPosition(this.directions.clone());
-            newPos.directions[direction] += delta;
-            return newPos;
+            int[] newDirections = this.directions.clone();
+            newDirections[direction] += delta;
+            return new IntegerPosition(newDirections);
         }
 
         LngLat getLngLat(LngLat from) {
             LngLat lnglat = new LngLat(from.lng, from.lat);
 
             for (int i = 0; i < 8; i++) {
-                lnglat = lnglat.add(offsets[i].scale(this.directions[i]));
+                lnglat.fastStaticAdd(offsets[i].lng * this.directions[i], offsets[i].lat * this.directions[i]);
             }
 
             return lnglat;
@@ -105,7 +105,7 @@ public class AStar {
      * @return A list of nodes that are adjacent
      */
     private static List<IntegerPosition> getAdjacentPositions(IntegerPosition pos) {
-        List<IntegerPosition> adjacentPositions = new ArrayList<>();
+        List<IntegerPosition> adjacentPositions = new ArrayList<>(16);
 
         for (int i = 0; i < 8; i++) {
             adjacentPositions.add(pos.changeDirection(i, 1));
@@ -136,8 +136,6 @@ public class AStar {
         boundaryQueue.add(new Node(startPosition, null, 0, Utils.getDistance(from, to)));
         boundaryMap.put(startPosition, new Node(startPosition, null, 0, Utils.getDistance(from, to)));
 
-        double closestSoFar = Double.MAX_VALUE;
-
         // While there is at least one boundary node
         while (!boundaryQueue.isEmpty()) {
             // Select the current node as the lowest cost boundary node
@@ -148,11 +146,7 @@ public class AStar {
             // If above max cost, just skip this node
             if (current.totalCost > maxCost) continue;
 
-            double distance = Utils.getDistance(current.position.getLngLat(from), to);
-            if (distance < closestSoFar) {
-                closestSoFar = distance;
-                System.out.println("closestSoFar: " + closestSoFar);
-            }
+            LngLat currentLngLat = current.position.getLngLat(from);
 
             // Remove current node from boundary nodes
             boundaryMap.remove(current.position);
@@ -176,11 +170,13 @@ public class AStar {
                 // If this node is already present in the closedNodes don't do anything
                 if (closedSet.contains(nextPosition)) continue;
 
+                LngLat nextLngLat = nextPosition.getLngLat(from);
+
                 // If this step intersects with any of the lines we can't cross, continue
-                Raycasting.Line stepLine = new Raycasting.Line(current.position.getLngLat(from), nextPosition.getLngLat(from));
+                Raycasting.Line stepLine = new Raycasting.Line(currentLngLat, nextLngLat);
                 boolean intersects = false;
                 for (Raycasting.Line line : regionLines) {
-                    if (Raycasting.findIntersectionPoint(stepLine, line) != null) {
+                    if (Raycasting.intersects(stepLine, line)) {
                         intersects = true;
                         break;
                     }
@@ -189,7 +185,7 @@ public class AStar {
 
                 Node existingNode = boundaryMap.get(nextPosition);
                 double newGCost = current.gCost + 0.00015;
-                double newFCost = newGCost + Utils.getDistance(nextPosition.getLngLat(from), to) * 1.05;
+                double newFCost = newGCost + Utils.getDistance(nextLngLat, to) * 1.05;
                 // If a node is already in the boundary
                 if (existingNode == null) {
                     // Add new node to boundary

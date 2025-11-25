@@ -21,4 +21,6 @@ public class RestrictedArea {
 
     @JsonProperty(value = "vertices")
     List<LngLatAlt> vertices;
+
+
 }

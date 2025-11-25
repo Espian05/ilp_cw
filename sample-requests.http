@@ -198,3 +198,62 @@ Content-Type: application/json
       }
     }
 ]
+
+### POST delivery path
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 0,
+    "date": "2025-11-18",
+    "time": "15:00",
+    "requirements": {
+      "capacity": 1.0,
+      "maxCost": 100
+    },
+    "delivery": {
+      "lng": -3.1893772182582154,
+      "lat": 55.946378903626425
+    }
+  },
+  {
+    "id": 1,
+    "date": "2025-11-19",
+    "time": "09:00",
+    "requirements": {
+      "capacity": 1.0,
+      "maxCost": 100
+    },
+    "delivery": {
+      "lng": -3.1851137499146205,
+      "lat": 55.944578297383686
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-11-19",
+    "time": "09:00",
+    "requirements": {
+      "capacity": 1.0,
+      "maxCost": 100
+    },
+    "delivery": {
+      "lng": -3.1875123178551235,
+      "lat": 55.945254809917685
+    }
+  },
+  {
+    "id": 3,
+    "date": "2025-11-19",
+    "time": "09:00",
+    "requirements": {
+      "capacity": 1.0,
+      "maxCost": 100
+    },
+    "delivery": {
+      "lng": -3.1893837696125047,
+      "lat": 55.94540438103067
+    }
+  }
+]

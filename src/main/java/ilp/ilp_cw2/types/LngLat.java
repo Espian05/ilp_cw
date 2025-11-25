@@ -62,4 +62,16 @@ public class LngLat {
     public LngLat add(LngLat other) {
         return new LngLat(lng + other.lng, lat + other.lat);
     }
+
+    @JsonIgnore
+    public void staticAdd(LngLat other) {
+        this.lng += other.lng;
+        this.lat += other.lat;
+    }
+
+    @JsonIgnore
+    public void fastStaticAdd(double lng, double lat) {
+        this.lng += lng;
+        this.lat += lat;
+    }
 }

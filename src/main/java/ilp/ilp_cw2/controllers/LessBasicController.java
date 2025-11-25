@@ -20,6 +20,7 @@ import org.springframework.web.client.RestTemplate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Timer;
 
 @RestController
 public class LessBasicController {
@@ -129,185 +130,126 @@ public class LessBasicController {
         DronesForServicePoint[] dronesForServicePoints = restTemplate.getForObject(ilpEndpoint + "/drones-for-service-points", DronesForServicePoint[].class);
         ServicePoint[] servicePoints = restTemplate.getForObject(ilpEndpoint + "/service-points", ServicePoint[].class);
 
-        return ResponseEntity.ok(Arrays.stream(drones).filter(drone -> {
-            List<Pair<DronesAvailability, Integer>> droneAvailabilityPairs = new ArrayList<>();
-            for (DronesForServicePoint dronesForServicePoint : dronesForServicePoints) {
-                for (DronesAvailability availability : dronesForServicePoint.getDrones()) {
-                    if (availability.getId().equals(drone.id)) {
-                        droneAvailabilityPairs.add(new Pair<>(availability, dronesForServicePoint.servicePointId));
-                    }
-                }
-            }
-
-            // The id of the service point that this drone can do these deliveries from
-            int servicePointId = 0;
-
-            // Only want to return true if a drone matches at least one slot for each medDispatchRed
-            // and fulfills all requirements
-            // For every record
-            // The service point the drone is at when it can fulfill all of the medDispatchRecs
-            for (MedDispatchRec medDispatchRec : medDispatchRecs) {
-                boolean matchesThisRecord = false;
-
-                // For each list of availability at each service point this drone services
-                for (Pair<DronesAvailability, Integer> droneAvailabilityPair : droneAvailabilityPairs) {
-                    // For each availability on a given day in a given schedule
-                    for (Availability availability : droneAvailabilityPair.first.getAvailability()) {
-                        if (!medDispatchRec.getDate().getDayOfWeek().equals(availability.getDayOfWeek())) continue;
-                        if (availability.getFrom().isAfter(medDispatchRec.getTime())) continue;
-                        if (availability.getUntil().isBefore(medDispatchRec.getTime())) continue;
-                        matchesThisRecord = true;
-                        servicePointId = droneAvailabilityPair.second;
-                        break;
-                    }
-                    if (matchesThisRecord) {
-                        if (queryAvailableDronesDebug)
-                            System.out.println("Drone " + drone.id + " has matching availability with medDispatchRec " + medDispatchRec.getId());
-                        break;
-                    }
-                }
-
-                if (!matchesThisRecord) {
-                    if (queryAvailableDronesDebug)
-                        System.out.println("Drone " + drone.id + " does not have matching availability with with medDispatchRec " + medDispatchRec.getId());
-                    return false;
-                }
-
-                // Now check through all requirements for this medDispatchRec
-                Requirements requirements = medDispatchRec.getRequirements();
-                if (requirements.getCooling() != null)
-                    if (requirements.getCooling() != drone.capability.isCooling()) {
-                        if (queryAvailableDronesDebug)
-                            System.out.println("Drone " + drone.id + " does not match the cooling requirement with medDispatchRec " + medDispatchRec.getId());
-                        return false;
-                    }
-                if (requirements.getHeating() != null)
-                    if (requirements.getHeating() != drone.capability.isHeating()) {
-                        if (queryAvailableDronesDebug)
-                            System.out.println("Drone " + drone.id + " does not match the heating requirement with medDispatchRec " + medDispatchRec.getId());
-                        return false;
-                    }
-
-                if (queryAvailableDronesDebug)
-                    System.out.println("Drone " + drone.id + " has matching heating/cooling with medDispatchRec " + medDispatchRec.getId());
-            }
-
-            // Now that we know the individual requirements for each medDispatchRec are satisfied,
-            // we can look at the total capacity
-            double totalCapacityNeeded = 0;
-            for (MedDispatchRec medDispatchRec : medDispatchRecs) {
-                totalCapacityNeeded += medDispatchRec.getRequirements().getCapacity();
-            }
-            if (totalCapacityNeeded > drone.capability.getCapacity()) {
-                if (queryAvailableDronesDebug)
-                    System.out.println("Drone " + drone.id + " does not have the capacity needed ( " + drone.capability.getCapacity() + " < " + totalCapacityNeeded + " )");
-                return false;
-            }
-
-            LngLatAlt lngLatAlt = new LngLatAlt(0, 0, 0);
-            for (ServicePoint servicePoint : servicePoints) {
-                if (servicePoint.id == servicePointId) {
-                    lngLatAlt = servicePoint.location;
-                }
-            }
-
-            // Now we know it also has the capacity, so we can finally look at the maxCost
-            // (distance(servicePoint, delivery)/step) × costPerMove + costInitial + costFinal
-            double totalDistance = 0;
-            boolean totalCostNeeded = false;
-            for (MedDispatchRec medDispatchRec : medDispatchRecs) {
-                if (medDispatchRec.getRequirements().getMaxCost() != null) totalCostNeeded = true;
-                totalDistance += Utils.getDistance(new LngLat(lngLatAlt.lng, lngLatAlt.lat), medDispatchRec.getDelivery());
-            }
-
-            double totalCost = totalDistance / 0.0015;
-            totalCost *= drone.capability.getCostPerMove();
-            totalCost += drone.capability.getCostInitial();
-            totalCost += drone.capability.getCostFinal();
-
-            double proRataCost = totalCost / medDispatchRecs.length;
-
-            if (totalCostNeeded) {
-                for (MedDispatchRec medDispatchRec : medDispatchRecs) {
-                    if (medDispatchRec.getRequirements().maxCostIsNull()) continue;
-                    if (proRataCost > medDispatchRec.getRequirements().getMaxCost()) {
-                        if (queryAvailableDronesDebug)
-                            System.out.println("Max cost is too high for medDispatchRec " +
-                                    medDispatchRec.getId() + " ( " + totalCost + " > " +
-                                    medDispatchRec.getRequirements().getMaxCost() + ")");
-                        return false;
-                    }
-                }
-            }
-
-            if (queryAvailableDronesDebug)
-                System.out.println("Drone " + drone.id + " matches with all medDispatchRecs");
-            return true;
-        }).map(drone -> { return drone.id; }).toList());
+        List<Drone> availableDrones = Utils.queryAvailableDrones(medDispatchRecs, drones, dronesForServicePoints, servicePoints);
+        return ResponseEntity.ok(availableDrones.stream().map(drone -> drone.id).toList());
     }
 
-    @GetMapping("/service-points-geo")
-    public ResponseEntity<String> getServicePoints() throws JSONException {
-        ServicePoint[] service_points =
-                restTemplate.getForObject(ilpEndpoint + "/service-points", ServicePoint[].class);
+    @PostMapping(endpointStart + "/calcDeliveryPath")
+    public ResponseEntity<DeliveryPaths> calcDeliveryPath(@RequestBody MedDispatchRec[] medDispatchRecs) {
+        Drone[] drones = restTemplate.getForObject(ilpEndpoint + "/drones", Drone[].class);
+        DronesForServicePoint[] dronesForServicePoints = restTemplate.getForObject(ilpEndpoint + "/drones-for-service-points", DronesForServicePoint[].class);
+        ServicePoint[] servicePoints = restTemplate.getForObject(ilpEndpoint + "/service-points", ServicePoint[].class);
+        RestrictedArea[] restrictedAreas = restTemplate.getForObject(ilpEndpoint + "/restricted-areas", RestrictedArea[].class);
 
-        JSONObject response = new JSONObject();
-        response.put("type", "FeatureCollection");
+        // Get available drones
+        List<Drone> availableDrones = Utils.queryAvailableDrones(medDispatchRecs, drones, dronesForServicePoints, servicePoints);
 
-        JSONArray featuresArray = new JSONArray();
-        for (ServicePoint service_point : service_points) {
-            JSONObject feature = new JSONObject();
-
-            feature.put("name", service_point.getName());
-            feature.put("type", "Feature");
-            feature.put("properties", new JSONObject());
-
-            JSONObject geometry = new JSONObject();
-            JSONArray coordinates = new JSONArray();
-            coordinates.put(service_point.location.lng);
-            coordinates.put(service_point.location.lat);
-            geometry.put("coordinates", coordinates);
-            geometry.put("type", "Point");
-            feature.put("geometry", geometry);
-
-            featuresArray.put(feature);
+        // If no available drones, return an empty object
+        if (availableDrones.isEmpty()) {
+            return ResponseEntity.ok(new DeliveryPaths());
         }
-        response.put("features", featuresArray);
 
-        return ResponseEntity.ok(response.toString());
+        // Select my drone
+        Drone drone = availableDrones.getFirst();
+
+        // Get list of delivery points from the medDispatchRecs
+        List<LngLat> deliveryPoints = Arrays.stream(medDispatchRecs).map(MedDispatchRec::getDelivery).toList();
+
+        // Calculate paths in order of occurrence for now
+        List<LngLat> pointsToPathThrough = new ArrayList<>();
+        pointsToPathThrough.add(drone.servicePointPosition);
+        pointsToPathThrough.addAll(deliveryPoints);
+        pointsToPathThrough.add(drone.servicePointPosition);
+
+        // Get the lines from the restricted areas
+        Region[] regions = Utils.restrictedAreasToRegions(restrictedAreas).toArray(new Region[0]);
+        List<Raycasting.Line> lines = Utils.regionsToLines(regions);
+
+        // Calculate paths
+        List<List<LngLat>> paths = new ArrayList<>();
+        int totalMoves = 0;
+        for (int i = 0; i < pointsToPathThrough.size() - 1; i++) {
+            List<LngLat> path;
+            if (i == 0) path = AStar.AStarPathWithCost(pointsToPathThrough.get(i), pointsToPathThrough.get(i + 1), 100, lines).first;
+            else path = AStar.AStarPathWithCost(paths.getLast().getLast(), pointsToPathThrough.get(i + 1), 100, lines).first;
+            path.add(path.getLast());
+            paths.add(path);
+            totalMoves += path.size();
+        }
+
+        // Convert paths to delivery paths
+        DeliveryPaths deliveryPaths = new DeliveryPaths();
+
+        deliveryPaths.totalCost = totalMoves * drone.capability.getCostPerMove() + drone.capability.getCostInitial() + drone.capability.getCostFinal();
+        deliveryPaths.totalMoves = totalMoves;
+
+        List<DronePath> dronePaths = new ArrayList<>();
+        DronePath dronePath = new DronePath();
+        dronePath.droneId = drone.id;
+
+        List<Delivery> deliveries = new ArrayList<>();
+        for (int i = 0; i < paths.size(); i++) {
+            Delivery delivery = new Delivery();
+            if (i < medDispatchRecs.length) delivery.deliveryId = medDispatchRecs[i].getId();
+            else delivery.deliveryId = null;
+            delivery.flightPath = paths.get(i).toArray(new LngLat[0]);
+            deliveries.add(delivery);
+        }
+        dronePath.deliveries = deliveries.toArray(new Delivery[0]);
+
+        dronePaths.add(dronePath);
+
+        deliveryPaths.dronePaths = dronePaths.toArray(new DronePath[0]);
+
+        return ResponseEntity.ok(deliveryPaths);
     }
 
-    @GetMapping("/restricted-areas-geo")
-    public ResponseEntity<String> getRestrictedAreas() throws JSONException {
-        RestrictedArea[] restricted_areas =
-                restTemplate.getForObject(ilpEndpoint + "/restricted-areas", RestrictedArea[].class);
+    @PostMapping(endpointStart + "/calcDeliveryPathAsGeoJson")
+    public ResponseEntity<String> calcDeliveryPathAsGeoJson(@RequestBody MedDispatchRec[] medDispatchRecs) throws JSONException {
+        Drone[] drones = restTemplate.getForObject(ilpEndpoint + "/drones", Drone[].class);
+        DronesForServicePoint[] dronesForServicePoints = restTemplate.getForObject(ilpEndpoint + "/drones-for-service-points", DronesForServicePoint[].class);
+        ServicePoint[] servicePoints = restTemplate.getForObject(ilpEndpoint + "/service-points", ServicePoint[].class);
+        RestrictedArea[] restrictedAreas = restTemplate.getForObject(ilpEndpoint + "/restricted-areas", RestrictedArea[].class);
 
-        JSONObject response = new JSONObject();
-        response.put("type", "FeatureCollection");
+        // Get available drones
+        List<Drone> availableDrones = Utils.queryAvailableDrones(medDispatchRecs, drones, dronesForServicePoints, servicePoints);
 
-        JSONArray featuresArray = new JSONArray();
-        for (RestrictedArea restricted_area : restricted_areas) {
-            JSONObject feature = new JSONObject();
-            feature.put("type", "Feature");
-            feature.put("properties", new JSONObject());
-            JSONObject geometry = new JSONObject();
-            JSONArray coordinates = new JSONArray();
-            JSONArray inner_coordinates = new JSONArray();
-            for (LngLatAlt lnglatalt : restricted_area.getVertices()) {
-                JSONArray coordinate = new JSONArray();
-                coordinate.put(lnglatalt.lng);
-                coordinate.put(lnglatalt.lat);
-                inner_coordinates.put(coordinate);
-            }
-            coordinates.put(inner_coordinates);
-            geometry.put("coordinates", coordinates);
-            geometry.put("type", "Polygon");
-            feature.put("geometry", geometry);
-            featuresArray.put(feature);
+        // If no available drones, return an empty object
+        if (availableDrones.isEmpty()) {
+            return ResponseEntity.ok("");
         }
-        response.put("features", featuresArray);
 
-        return ResponseEntity.ok(response.toString());
+        // Select my drone
+        Drone drone = availableDrones.getFirst();
+
+        // Get the lines from the restricted areas
+        Region[] regions = Utils.restrictedAreasToRegions(restrictedAreas).toArray(new Region[0]);
+        List<Raycasting.Line> lines = Utils.regionsToLines(regions);
+
+        // Get list of delivery points from the medDispatchRecs
+        List<LngLat> deliveryPoints = Arrays.stream(medDispatchRecs).map(MedDispatchRec::getDelivery).toList();
+
+        List<LngLat> bestPath = Utils.bestDeliveryOrderingPathAStar(drone.servicePointPosition, deliveryPoints, lines).second;
+        return ResponseEntity.ok(GeoJson.toGeoJsonWithRegions(new ArrayList<>(){{add(bestPath);}}, restrictedAreas));
+
+        // Calculate paths in order of occurrence for now
+        /*
+        List<LngLat> pointsToPathThrough = new ArrayList<>();
+        pointsToPathThrough.add(drone.servicePointPosition);
+        pointsToPathThrough.addAll(deliveryPoints);
+        pointsToPathThrough.add(drone.servicePointPosition);
+
+        // Calculate paths
+        List<List<LngLat>> paths = new ArrayList<>();
+        for (int i = 0; i < pointsToPathThrough.size() - 1; i++) {
+            List<LngLat> path;
+            if (i == 0) path = AStar.AStarPathWithCost(pointsToPathThrough.get(i), pointsToPathThrough.get(i + 1), 100, lines).first;
+            else path = AStar.AStarPathWithCost(paths.getLast().getLast(), pointsToPathThrough.get(i + 1), 100, lines).first;
+            paths.add(path);
+        }
+
+        return ResponseEntity.ok(GeoJson.toGeoJsonWithRegions(paths, restrictedAreas));
+        */
     }
 
     @GetMapping("/A_Star_Test")
@@ -326,26 +268,23 @@ public class LessBasicController {
         LngLat testPoint1 = new LngLat(-3.190552655673514, 55.943019164584655);
         LngLat testPoint2 = new LngLat(-3.189387176308202, 55.94576879534256);
 
-        List<LngLat> testPoints = new ArrayList<>();
-        testPoints.add(appleton);
-        testPoints.add(brightonStreet);
-        testPoints.add(annoyingPlace);
-        testPoints.add(annoyingPlace2);
-        testPoints.add(testPoint1);
-        testPoints.add(testPoint2);
+        LngLat hafsas = new LngLat(-3.1851137499146205, 55.944578297383686);
+
+        List<LngLat> deliveryPoints = new ArrayList<>();
+        deliveryPoints.add(brightonStreet);
+        deliveryPoints.add(annoyingPlace);
+        deliveryPoints.add(annoyingPlace2);
+        deliveryPoints.add(testPoint1);
+        deliveryPoints.add(testPoint2);
+        deliveryPoints.add(hafsas);
+        //deliveryPoints.add(oceanTerminal);
+        //deliveryPoints.add(hamilton);
 
         Region[] regions = Utils.restrictedAreasToRegions(restrictedAreas).toArray(new Region[0]);
         List<Raycasting.Line> lines = Utils.regionsToLines(regions);
 
-        List<List<LngLat>> paths = new ArrayList<>();
-        List<Pair<LngLat, LngLat>> pathPairs = new ArrayList<>();
-        for (List<LngLat> list : Utils.generatePerm(testPoints)) {
-            Pair<LngLat, LngLat> pair = new Pair<>(list.get(0), list.get(1));
-            if (pathPairs.contains(pair)) continue;
-            paths.add(AStar.AStarPathWithCost(pair.first, pair.second, 100, lines).first);
-            pathPairs.add(pair);
-        }
-        System.out.println("Done!");
-        return ResponseEntity.ok(GeoJson.toGeoJsonWithRegions(paths, restrictedAreas));
+
+        List<LngLat> bestPath = Utils.bestDeliveryOrderingPathEuclidean(appleton, deliveryPoints, lines).second;
+        return ResponseEntity.ok(GeoJson.toGeoJsonWithRegions(new ArrayList<>(){{add(bestPath);}}, restrictedAreas));
     }
 }

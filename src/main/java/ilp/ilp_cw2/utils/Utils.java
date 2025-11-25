@@ -1,13 +1,17 @@
 package ilp.ilp_cw2.utils;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import ilp.ilp_cw2.dtos.RestrictedArea;
+import ilp.ilp_cw2.dtos.*;
 import ilp.ilp_cw2.raycasting.Raycasting;
 import ilp.ilp_cw2.types.LngLat;
+import ilp.ilp_cw2.types.LngLatAlt;
 import ilp.ilp_cw2.types.Region;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Utils {
     /**
@@ -192,28 +196,228 @@ public class Utils {
         List<Raycasting.Line> lines = new ArrayList<>();
         for (Region region : regions) {
             for (int i = 0; i < region.vertices.size() - 1; i++) {
-                lines.add(new Raycasting.Line(region.vertices.get(i), region.vertices.get(i + 1)));
+                Raycasting.Line line = new Raycasting.Line(region.vertices.get(i), region.vertices.get(i + 1));
+                lines.add(line);
             }
         }
         return lines;
     }
 
-    public static <E> List<List<E>> generatePerm(List<E> original) {
-        if (original.isEmpty()) {
-            List<List<E>> result = new ArrayList<>();
-            result.add(new ArrayList<>());
-            return result;
+    public static <T> @NotNull List<Pair<T, T>> generatePairs(List<T> original) {
+        if (original.isEmpty()) return new ArrayList<>();
+
+        List<Pair<T, T>> returnValue = new ArrayList<>();
+        T first = original.removeFirst();
+        for (T element : original) {
+            returnValue.add(new Pair<>(first, element));
         }
-        E firstElement = original.removeFirst();
-        List<List<E>> returnValue = new ArrayList<>();
-        List<List<E>> permutations = generatePerm(original);
-        for (List<E> smallerPermutated : permutations) {
-            for (int index = 0; index <= smallerPermutated.size(); index++) {
-                List<E> temp = new ArrayList<>(smallerPermutated);
-                temp.add(index, firstElement);
-                returnValue.add(temp);
+
+        returnValue.addAll(generatePairs(original));
+        return returnValue;
+    }
+
+    public static <T> List<List<T>> generatePermutations(List<T> list) {
+        if (list.size() == 1) return new ArrayList<>(){{add(list);}};
+
+        List<List<T>> returnValue = new ArrayList<>();
+
+        for (T element : list) {
+            List<T> copyList = new ArrayList<>(list);
+            copyList.remove(element);
+            returnValue.addAll(generatePermutations(copyList).stream().peek(perm -> perm.addFirst(element)).toList());
+        }
+
+        return returnValue;
+    }
+
+    private static final boolean queryAvailableDronesDebug = false;
+    public static List<Drone> queryAvailableDrones(
+            MedDispatchRec[] medDispatchRecs,
+            Drone[] drones,
+            DronesForServicePoint[] dronesForServicePoints,
+            ServicePoint[] servicePoints
+    ) {
+        return Arrays.stream(drones).filter(drone -> {
+            List<Pair<DronesAvailability, Integer>> droneAvailabilityPairs = new ArrayList<>();
+            for (DronesForServicePoint dronesForServicePoint : dronesForServicePoints) {
+                for (DronesAvailability availability : dronesForServicePoint.getDrones()) {
+                    if (availability.getId().equals(drone.id)) {
+                        droneAvailabilityPairs.add(new Pair<>(availability, dronesForServicePoint.servicePointId));
+                    }
+                }
+            }
+
+            // The id of the service point that this drone can do these deliveries from
+            int servicePointId = 0;
+
+            // Only want to return true if a drone matches at least one slot for each medDispatchRed
+            // and fulfills all requirements
+            // For every record
+            // The service point the drone is at when it can fulfill all of the medDispatchRecs
+            for (MedDispatchRec medDispatchRec : medDispatchRecs) {
+                boolean matchesThisRecord = false;
+
+                // For each list of availability at each service point this drone services
+                for (Pair<DronesAvailability, Integer> droneAvailabilityPair : droneAvailabilityPairs) {
+                    // For each availability on a given day in a given schedule
+                    for (Availability availability : droneAvailabilityPair.first.getAvailability()) {
+                        if (!medDispatchRec.getDate().getDayOfWeek().equals(availability.getDayOfWeek())) continue;
+                        if (availability.getFrom().isAfter(medDispatchRec.getTime())) continue;
+                        if (availability.getUntil().isBefore(medDispatchRec.getTime())) continue;
+                        matchesThisRecord = true;
+                        servicePointId = droneAvailabilityPair.second;
+                        break;
+                    }
+                    if (matchesThisRecord) {
+                        if (queryAvailableDronesDebug)
+                            System.out.println("Drone " + drone.id + " has matching availability with medDispatchRec " + medDispatchRec.getId());
+                        break;
+                    }
+                }
+
+                if (!matchesThisRecord) {
+                    if (queryAvailableDronesDebug)
+                        System.out.println("Drone " + drone.id + " does not have matching availability with with medDispatchRec " + medDispatchRec.getId());
+                    return false;
+                }
+
+                // Now check through all requirements for this medDispatchRec
+                Requirements requirements = medDispatchRec.getRequirements();
+                if (requirements.getCooling() != null)
+                    if (requirements.getCooling() != drone.capability.isCooling()) {
+                        if (queryAvailableDronesDebug)
+                            System.out.println("Drone " + drone.id + " does not match the cooling requirement with medDispatchRec " + medDispatchRec.getId());
+                        return false;
+                    }
+                if (requirements.getHeating() != null)
+                    if (requirements.getHeating() != drone.capability.isHeating()) {
+                        if (queryAvailableDronesDebug)
+                            System.out.println("Drone " + drone.id + " does not match the heating requirement with medDispatchRec " + medDispatchRec.getId());
+                        return false;
+                    }
+
+                if (queryAvailableDronesDebug)
+                    System.out.println("Drone " + drone.id + " has matching heating/cooling with medDispatchRec " + medDispatchRec.getId());
+            }
+
+            // Now that we know the individual requirements for each medDispatchRec are satisfied,
+            // we can look at the total capacity
+            double totalCapacityNeeded = 0;
+            for (MedDispatchRec medDispatchRec : medDispatchRecs) {
+                totalCapacityNeeded += medDispatchRec.getRequirements().getCapacity();
+            }
+            if (totalCapacityNeeded > drone.capability.getCapacity()) {
+                if (queryAvailableDronesDebug)
+                    System.out.println("Drone " + drone.id + " does not have the capacity needed ( " + drone.capability.getCapacity() + " < " + totalCapacityNeeded + " )");
+                return false;
+            }
+
+            LngLatAlt lngLatAlt = new LngLatAlt(0, 0, 0);
+            for (ServicePoint servicePoint : servicePoints) {
+                if (servicePoint.id == servicePointId) {
+                    lngLatAlt = servicePoint.location;
+                    drone.servicePointPosition = new LngLat(servicePoint.location.lng, servicePoint.location.lat);
+                    break;
+                }
+            }
+
+            // Now we know it also has the capacity, so we can finally look at the maxCost
+            // (distance(servicePoint, delivery)/step) × costPerMove + costInitial + costFinal
+            double totalDistance = 0;
+            boolean totalCostNeeded = false;
+            for (MedDispatchRec medDispatchRec : medDispatchRecs) {
+                if (medDispatchRec.getRequirements().getMaxCost() != null) totalCostNeeded = true;
+                totalDistance += Utils.getDistance(new LngLat(lngLatAlt.lng, lngLatAlt.lat), medDispatchRec.getDelivery());
+            }
+
+            double totalCost = totalDistance / 0.0015;
+            totalCost *= drone.capability.getCostPerMove();
+            totalCost += drone.capability.getCostInitial();
+            totalCost += drone.capability.getCostFinal();
+
+            double proRataCost = totalCost / medDispatchRecs.length;
+
+            if (totalCostNeeded) {
+                for (MedDispatchRec medDispatchRec : medDispatchRecs) {
+                    if (medDispatchRec.getRequirements().maxCostIsNull()) continue;
+                    if (proRataCost > medDispatchRec.getRequirements().getMaxCost()) {
+                        if (queryAvailableDronesDebug)
+                            System.out.println("Max cost is too high for medDispatchRec " +
+                                    medDispatchRec.getId() + " ( " + totalCost + " > " +
+                                    medDispatchRec.getRequirements().getMaxCost() + ")");
+                        return false;
+                    }
+                }
+            }
+
+            if (queryAvailableDronesDebug)
+                System.out.println("Drone " + drone.id + " matches with all medDispatchRecs");
+            return true;
+        }).toList();
+    }
+
+    public static List<LngLat> pathFromPoints(List<LngLat> points, List<Raycasting.Line> lines) {
+        List<LngLat> path = new ArrayList<>();
+
+        for (int i = 0; i < points.size() - 1; i++) {
+            if (i == 0) path.addAll(AStar.AStarPathWithCost(points.get(i), points.get(i + 1), 100, lines).first);
+            else path.addAll(AStar.AStarPathWithCost(path.getLast(), points.get(i + 1), 100, lines).first);
+        }
+
+        return path;
+    }
+
+    public static Pair<List<LngLat>, List<LngLat>> bestDeliveryOrderingPathAStar(LngLat servicePoint, List<LngLat> deliveryPoints, List<Raycasting.Line> lines) {
+        // A valid delivery path must start and end at the service point
+
+        // Generate all permutations of delivery points
+        List<List<LngLat>> permutations = generatePermutations(deliveryPoints);
+
+        List<LngLat> bestDeliveryOrder = null;
+        List<LngLat> bestDeliveryPath = null;
+
+        for (List<LngLat> ordering : permutations) {
+            ordering.addFirst(servicePoint);
+            ordering.addLast(servicePoint);
+
+            List<LngLat> path = pathFromPoints(ordering, lines);
+
+            if (bestDeliveryPath == null) {
+                bestDeliveryPath = path;
+                bestDeliveryOrder = ordering;
+            } else if (path.size() < bestDeliveryPath.size()) {
+                bestDeliveryPath = path;
+                bestDeliveryOrder = ordering;
             }
         }
-        return returnValue;
+
+        return new Pair<>(bestDeliveryOrder, bestDeliveryPath);
+    }
+
+    public static Pair<List<LngLat>, List<LngLat>> bestDeliveryOrderingPathEuclidean(LngLat servicePoint, List<LngLat> deliveryPoints, List<Raycasting.Line> lines) {
+        // A valid delivery path must start and end at the service point
+
+        // Generate all permutations of delivery points
+        List<List<LngLat>> permutations = generatePermutations(deliveryPoints);
+
+        List<LngLat> bestDeliveryOrder = null;
+        double shortestDistance = Double.MAX_VALUE;
+
+        for (List<LngLat> ordering : permutations) {
+            ordering.addFirst(servicePoint);
+            ordering.addLast(servicePoint);
+
+            double totalEstimatedDistance = 0;
+            for (int i = 0; i < ordering.size() - 1; i++) {
+                totalEstimatedDistance += Utils.getDistance(ordering.get(i), ordering.get(i + 1));
+            }
+
+            if (totalEstimatedDistance < shortestDistance) {
+                shortestDistance = totalEstimatedDistance;
+                bestDeliveryOrder = ordering;
+            }
+        }
+
+        return new Pair<>(bestDeliveryOrder, pathFromPoints(bestDeliveryOrder, lines));
     }
 }
