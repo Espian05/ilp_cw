@@ -149,3 +149,107 @@ Content-Type: application/json
         client.assert(JSON.stringify(response.body) === JSON.stringify([]), "Response body is not correct");
     });
 %}
+
+### POST Aisha_test_1
+POST http://localhost:8080/api/v1/query
+Content-Type: application/json
+
+[
+    {
+        "attribute": "capacity",
+        "operator": "<",
+        "value": "9"
+    },
+    {
+        "attribute": "cooling",
+        "operator": "=",
+        "value": "true"
+    }
+]
+
+> {%
+    client.test("Request correct response body", function() {
+        client.assert(JSON.stringify(response.body) === JSON.stringify(["1", "9"]), "Response body is not correct");
+    });
+%}
+
+### POST Aisha_test_2
+POST http://localhost:8080/api/v1/query
+Content-Type: application/json
+
+[
+  {
+    "attribute": "capacity",
+    "operator": "=",
+    "value": "20"
+  },
+  {
+    "attribute": "cooling",
+    "operator": "=",
+    "value": "true"
+  },
+  {
+    "attribute": "heating",
+    "operator": "=",
+    "value": "false"
+  },
+  {
+    "attribute": "maxMoves",
+    "operator": "<",
+    "value": "4001"
+  },
+  {
+    "attribute": "costPerMove",
+    "operator": "=",
+    "value": "0.04"
+  },
+  {
+    "attribute": "costFinal",
+    "operator": "<",
+    "value": "13.0"
+  },
+  {
+    "attribute": "costInitial",
+    "operator": ">",
+    "value": "5.0"
+  }
+]
+
+> {%
+    client.test("Request correct response body", function() {
+        client.assert(JSON.stringify(response.body) === JSON.stringify(["8"]), "Response body is not correct");
+    });
+%}
+
+### POST Aisha_test_3
+POST http://localhost:8080/api/v1/query
+Content-Type: application/json
+
+[
+    {
+        "attribute": "capacity",
+        "operator": "=",
+        "value": "20"
+    },
+    {
+        "attribute": "cooling",
+        "operator": "=",
+        "value": "false"
+    },
+    {
+        "attribute": "heating",
+        "operator": "=",
+        "value": "false"
+    },
+    {
+        "attribute": "maxMoves",
+        "operator": ">",
+        "value": "4000"
+    }
+]
+
+> {%
+    client.test("Request correct response body", function() {
+        client.assert(JSON.stringify(response.body) === JSON.stringify([]), "Response body is not correct");
+    });
+%}

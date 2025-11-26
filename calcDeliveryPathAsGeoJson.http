@@ -285,3 +285,720 @@ Content-Type: application/json
     }
   }
 ]
+
+### POST Aisha_Test_4
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 123,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.5,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.945
+    }
+  }
+]
+
+### POST Aisha_Test_5
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 123,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.5,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.19031,
+      "lat": 55.94440
+    }
+  }
+]
+
+### POST Discord_test_1
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-01-01",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.01,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 1000.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.941
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-01-02",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.01,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 1000.0
+    },
+    "delivery": {
+      "lng": -3.180,
+      "lat": 55.941
+    }
+  }
+]
+
+### POST Discord_test_2
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.75,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 13.5
+    },
+
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.941
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.15,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 10.5
+    },
+
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.951
+    }
+  },
+  {
+    "id": 3,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.85,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 8.0
+    },
+
+    "delivery": {
+      "lng": -3.183,
+      "lat": 55.95
+    }
+  },
+  {
+    "id": 4,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.65,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 10.0
+    },
+
+    "delivery": {
+      "lng": -3.172199382101411,
+      "lat": 55.972584313088475
+    }
+  },
+  {
+    "id": 9,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.15,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 10.5
+    },
+
+    "delivery": {
+      "lng": -3.206735201926506,
+      "lat": 55.955074502701166
+    }
+  },
+  {
+    "id": 23,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.75,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 13.5
+    },
+
+    "delivery": {
+      "lng": -3.1791924062780197,
+      "lat": 55.97613963120534
+    }
+  }
+]
+
+### POST Discord_test_3
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.75
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.941
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.15
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.951
+    }
+  },
+  {
+    "id": 3,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 6
+    },
+    "delivery": {
+      "lng": -3.183,
+      "lat": 55.95
+    }
+  },
+  {
+    "id": 4,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.65
+    },
+    "delivery": {
+      "lng": -3.213,
+      "lat": 55.94
+    }
+  }
+]
+
+### POST Discord_test_4
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-01-01",
+    "time": "12:00",
+    "requirements": {
+      "capacity": 4.0
+    },
+
+    "delivery": {
+      "lng": -3.199,
+      "lat": 55.945
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-01-01",
+    "time": "12:00",
+    "requirements": {
+      "capacity": 4.0
+    },
+
+    "delivery": {
+      "lng": -3.190,
+      "lat": 55.95
+    }
+  },
+  {
+    "id": 3,
+    "date": "2025-01-01",
+    "time": "12:00",
+    "requirements": {
+      "capacity": 4.0
+    },
+
+    "delivery": {
+      "lng": -3.175,
+      "lat": 55.948
+    }
+  },
+  {
+    "id": 4,
+    "date": "2025-01-01",
+    "time": "12:00",
+    "requirements": {
+      "capacity": 4.0
+    },
+
+    "delivery": {
+      "lng": -3.178,
+      "lat": 55.94
+    }
+  },
+  {
+    "id": 5,
+    "date": "2025-01-01",
+    "time": "12:00",
+    "requirements": {
+      "capacity": 4.0
+    },
+
+    "delivery": {
+      "lng": -3.192,
+      "lat": 55.939
+    }
+  }
+]
+
+### POST Discord_test_5
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-12-23",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.75,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 13.5
+    },
+
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.941
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-12-23",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.15,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 10.5
+    },
+
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.951
+    }
+  },
+  {
+    "id": 3,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.85,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 15.0
+    },
+
+    "delivery": {
+      "lng": -3.183,
+      "lat": 55.95
+    }
+  },
+  {
+    "id": 4,
+    "date": "2025-12-23",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.65,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 5.0
+    },
+
+    "delivery": {
+      "lng": -3.213,
+      "lat": 55.94
+    }
+  }
+]
+
+### POST Discord_test_6
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.75,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 13.5
+    },
+
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.941
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.15,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 10.5
+    },
+
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.951
+    }
+  },
+  {
+    "id": 3,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 6,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 5.0
+    },
+
+    "delivery": {
+      "lng": -3.183,
+      "lat": 55.95
+    }
+  },
+  {
+    "id": 4,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.65,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 15.0
+    },
+
+    "delivery": {
+      "lng": -3.213,
+      "lat": 55.94
+    }
+  },
+  {
+    "id": 5,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.75,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 13.5
+    },
+
+    "delivery": {
+      "lng": -3.2088,
+      "lat": 55.9799
+    }
+  },
+  {
+    "id": 6,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.15,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 10.5
+    },
+
+    "delivery": {
+      "lng": -3.1845,
+      "lat": 55.9707
+    }
+  },
+  {
+    "id": 7,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.65,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 15.0
+    },
+
+    "delivery": {
+      "lng": -3.1795,
+      "lat": 55.9434
+    }
+  },
+  {
+    "id": 8,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.75,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 13.5
+    },
+
+    "delivery": {
+      "lng": -3.1655,
+      "lat": 55.9806
+    }
+  }
+]
+
+### POST Discord_test_7
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 4,
+    "date": "2025-11-06",
+    "time": "09:00:00",
+    "delivery": {"lng": -3.187500, "lat": 55.945500},
+    "requirements": {
+      "capacity": 3.0
+    }
+  },
+  {
+    "id": 5,
+    "date": "2025-11-06",
+    "time": "10:00:00",
+    "delivery": {"lng": -3.189000, "lat": 55.946000},
+    "requirements": {
+      "capacity": 1.5
+    }
+  }
+]
+
+### POST Discord_test_8
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-01-01",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.01,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 1000.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.941
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-01-02",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.01,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 1000.0
+    },
+    "delivery": {
+      "lng": -3.180,
+      "lat": 55.941
+    }
+  }
+]
+
+### POST Discord_test_9
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-01-01",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 4.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 4.5
+    },
+
+    "delivery": {
+      "lng": -3.186,
+      "lat": 55.944
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-01-01",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 4.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 4.5
+    },
+
+    "delivery": {
+      "lng": -3.184,
+      "lat": 55.945
+    }
+  },
+  {
+    "id": 3,
+    "date": "2025-01-01",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 4.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 4.5
+    },
+
+    "delivery": {
+      "lng": -3.180,
+      "lat": 55.980
+    }
+  },
+  {
+    "id": 4,
+    "date": "2025-01-01",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 4.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 4.5
+    },
+
+    "delivery": {
+      "lng": -3.175,
+      "lat": 55.980
+    }
+  }
+]
+
+### POST Discord_test_10
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-01-01",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 4.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 7
+    },
+
+    "delivery": {
+      "lng": -3.186,
+      "lat": 55.944
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-01-01",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 4.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 7
+    },
+
+    "delivery": {
+      "lng": -3.184,
+      "lat": 55.945
+    }
+  },
+  {
+    "id": 3,
+    "date": "2025-01-01",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 4.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 7
+    },
+
+    "delivery": {
+      "lng": -3.180,
+      "lat": 55.980
+    }
+  },
+  {
+    "id": 4,
+    "date": "2025-01-01",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 4.0,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 7
+    },
+
+    "delivery": {
+      "lng": -3.175,
+      "lat": 55.980
+    }
+  }
+]

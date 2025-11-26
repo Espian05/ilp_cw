@@ -258,3 +258,115 @@ Content-Type: application/json
         client.assert(JSON.stringify(response.body) === JSON.stringify(["3", "8", "9"]), "Response body is not correct");
     });
 %}
+
+### POST Aisha_test_1
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 123,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 2,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 80
+    },
+    "delivery": {
+      "lng": -3.00,
+      "lat": 55.121
+    }
+  }
+]
+
+
+
+
+> {%
+    client.test("Request correct response body", function() {
+        client.assert(JSON.stringify(response.body) === JSON.stringify(["1"]), "Response body is not correct");
+    });
+%}
+
+### POST Aisha_test_2
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 123,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.5,
+      "maxCost": 18
+    },
+    "delivery": {
+      "lng": -3.186,
+      "lat": 55.945
+    }
+  },
+  {
+    "id": 124,
+    "date": "2025-12-22",
+    "time": "15:10",
+    "requirements": {
+      "capacity": 0.4,
+      "maxCost": 19.5
+    },
+    "delivery": {
+      "lng": -3.185,
+      "lat": 55.946
+    }
+  }
+]
+
+
+
+> {%
+    client.test("Request correct response body", function() {
+        client.assert(JSON.stringify(response.body) === JSON.stringify(["1", "2", "6", "7", "9"]), "Response body is not correct");
+    });
+%}
+
+### POST Aisha_test_3
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+
+[
+    {
+        "id": 123,
+        "date": "2025-12-22",
+        "time": "14:30",
+        "requirements": {
+            "capacity": 0.5,
+            "maxCost": 18
+        },
+        "delivery": {
+            "lng": -3.186,
+            "lat": 55.945
+        }
+    },
+    {
+        "id": 124,
+        "date": "2025-12-22",
+        "time": "15:10",
+        "requirements": {
+            "capacity": 0.4,
+            "maxCost": 19.5
+        },
+        "delivery": {
+            "lng": -3.185,
+            "lat": 55.946
+        }
+    }
+]
+
+> {%
+    client.test("Request correct response body", function() {
+        client.assert(JSON.stringify(response.body) === JSON.stringify(["1", "2", "6", "7", "9"]), "Response body is not correct");
+    });
+%}

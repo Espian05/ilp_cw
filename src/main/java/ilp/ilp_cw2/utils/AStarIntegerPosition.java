@@ -156,7 +156,7 @@ public class AStarIntegerPosition {
 
             // If this node is close to the "to" position,
             // this is the final node. Set final node and break
-            if (current.totalCost - current.gCost <= 0.00015) {
+            if (current.totalCost - current.gCost < 0.00015) {
                 finalNode = current;
                 break;
             }

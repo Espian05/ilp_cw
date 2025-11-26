@@ -30,7 +30,7 @@ public class Utils {
      * @return boolean
      */
     public static boolean isClose(LngLat position1, LngLat position2) {
-        return getDistance(position1, position2) <= 0.00015;
+        return getDistance(position1, position2) < 0.00015;
     }
 
     /**
@@ -358,10 +358,8 @@ public class Utils {
                 return false;
             }
 
-            LngLatAlt lngLatAlt = new LngLatAlt(0, 0, 0);
             for (ServicePoint servicePoint : servicePoints) {
                 if (servicePoint.id == servicePointId) {
-                    lngLatAlt = servicePoint.location;
                     drone.servicePointPosition = new LngLat(servicePoint.location.lng, servicePoint.location.lat);
                     break;
                 }
@@ -369,14 +367,19 @@ public class Utils {
 
             // Now we know it also has the capacity, so we can finally look at the maxCost
             // (distance(servicePoint, delivery)/step) × costPerMove + costInitial + costFinal
-            double totalDistance = 0;
+            ArrayList<LngLat> deliveryPoints = new ArrayList<>();
+            for (MedDispatchRec rec : medDispatchRecs) {
+                deliveryPoints.add(rec.getDelivery());
+            }
+
+            double lowestDistance = bestDeliverOrderWithCost(drone.servicePointPosition, deliveryPoints).second;
+
             boolean totalCostNeeded = false;
             for (MedDispatchRec medDispatchRec : medDispatchRecs) {
                 if (medDispatchRec.getRequirements().getMaxCost() != null) totalCostNeeded = true;
-                totalDistance += Utils.getDistance(new LngLat(lngLatAlt.lng, lngLatAlt.lat), medDispatchRec.getDelivery());
             }
 
-            double totalCost = totalDistance / 0.00015;
+            double totalCost = lowestDistance / 0.00015;
             totalCost *= drone.capability.getCostPerMove();
             totalCost += drone.capability.getCostInitial();
             totalCost += drone.capability.getCostFinal();
@@ -384,7 +387,7 @@ public class Utils {
             double proRataCost = totalCost / medDispatchRecs.size();
             drone.estimatedCost = proRataCost;
 
-            double totalEstimatedMoves = totalDistance / 0.00015;
+            double totalEstimatedMoves = lowestDistance / 0.00015;
 
             if (totalEstimatedMoves > drone.capability.getMaxMoves()) {
                 if (queryAvailableDronesDebug)
@@ -459,9 +462,7 @@ public class Utils {
         return new Pair<>(bestDeliveryOrder, bestDeliveryPath);
     }
 
-    public static Pair<ArrayList<LngLat>, ArrayList<LngLat>> bestDeliveryOrderingPathEuclidean(LngLat servicePoint, ArrayList<LngLat> deliveryPoints, ArrayList<Raycasting.Line> lines) {
-        // A valid delivery path must start and end at the service point
-
+    public static Pair<ArrayList<LngLat>, Double> bestDeliverOrderWithCost(LngLat servicePoint, ArrayList<LngLat> deliveryPoints) {
         // Generate all permutations of delivery points
         ArrayList<ArrayList<LngLat>> permutations = generatePermutations(deliveryPoints);
 
@@ -482,6 +483,14 @@ public class Utils {
                 bestDeliveryOrder = ordering;
             }
         }
+
+        return new Pair<>(bestDeliveryOrder, shortestDistance);
+    }
+
+    public static Pair<ArrayList<LngLat>, ArrayList<LngLat>> bestDeliveryOrderingPathEuclidean(LngLat servicePoint, ArrayList<LngLat> deliveryPoints, ArrayList<Raycasting.Line> lines) {
+        // A valid delivery path must start and end at the service point
+
+        ArrayList<LngLat> bestDeliveryOrder = bestDeliverOrderWithCost(servicePoint, deliveryPoints).first;
 
         return new Pair<>(bestDeliveryOrder, pathFromPoints(bestDeliveryOrder, lines));
     }
