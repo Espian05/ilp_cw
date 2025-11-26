@@ -20,4 +20,7 @@ public class Drone {
 
     @JsonIgnore
     public LngLat servicePointPosition;
+
+    @JsonIgnore
+    public Double estimatedCost;
 }

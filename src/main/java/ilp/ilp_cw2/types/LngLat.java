@@ -3,6 +3,7 @@ package ilp.ilp_cw2.types;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.websocket.OnError;
 import lombok.Builder;
 import lombok.Data;
 
@@ -64,14 +65,23 @@ public class LngLat {
     }
 
     @JsonIgnore
-    public void staticAdd(LngLat other) {
-        this.lng += other.lng;
-        this.lat += other.lat;
-    }
-
-    @JsonIgnore
     public void fastStaticAdd(double lng, double lat) {
         this.lng += lng;
         this.lat += lat;
+    }
+
+    @JsonIgnore
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof LngLat)) return false;
+        if (Math.abs(((LngLat) o).lng - this.lng) > 0.00001) return false;
+        if (Math.abs(((LngLat) o).lat - this.lat) > 0.00001) return false;
+        return true;
+    }
+
+    @JsonIgnore
+    @Override
+    public int hashCode() {
+        return Double.valueOf(lng).hashCode() + Double.valueOf(lat).hashCode();
     }
 }

@@ -1,16 +1,12 @@
 package ilp.ilp_cw2.utils;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import ilp.ilp_cw2.dtos.RestrictedArea;
 import ilp.ilp_cw2.raycasting.Raycasting;
 import ilp.ilp_cw2.types.LngLat;
-import ilp.ilp_cw2.types.Region;
-import org.springframework.boot.actuate.integration.IntegrationGraphEndpoint;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
-public class AStar {
+public class AStarLngLat {
     // List of available directions to travel in
     private static final double[] directionAngles = {
             0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5
@@ -35,63 +31,13 @@ public class AStar {
             Utils.getNextPosition(new LngLat(0, 0), directionAngles[15]),
     };
 
-    protected static class IntegerPosition {
-        public int[] directions;
-
-        public IntegerPosition(int[] directions) {
-            this.directions = directions;
-        }
-
-        public IntegerPosition() {
-            this.directions = new int[]{ 0, 0, 0, 0, 0, 0, 0, 0 };
-        }
-
-        @JsonIgnore
-        @Override
-        public boolean equals(Object other) {
-            if (!(other instanceof IntegerPosition)) {
-                return false;
-            } else {
-                return Arrays.equals(this.directions, ((IntegerPosition) other).directions);
-            }
-        }
-
-        @JsonIgnore
-        @Override
-        public int hashCode() {
-            return Arrays.hashCode(this.directions);
-        }
-
-        public IntegerPosition changeDirection(int direction, int delta) {
-            int[] newDirections = this.directions.clone();
-            newDirections[direction] += delta;
-            return new IntegerPosition(newDirections);
-        }
-
-        LngLat getLngLat(LngLat from) {
-            LngLat lnglat = new LngLat(from.lng, from.lat);
-
-            for (int i = 0; i < 8; i++) {
-                lnglat.fastStaticAdd(offsets[i].lng * this.directions[i], offsets[i].lat * this.directions[i]);
-            }
-
-            return lnglat;
-        }
-
-        @JsonIgnore
-        @Override
-        public String toString() {
-            return Arrays.toString(this.directions);
-        }
-    }
-
     protected static class Node {
-        public final IntegerPosition position;
+        public final LngLat position;
         public final Node previous;
         public final double gCost;
         public final double totalCost;
 
-        Node(IntegerPosition position, Node previous, double gCost, double totalCost) {
+        Node(LngLat position, Node previous, double gCost, double totalCost) {
             this.position = position;
             this.previous = previous;
             this.gCost = gCost;
@@ -104,12 +50,11 @@ public class AStar {
      * @param pos The starting position
      * @return A list of nodes that are adjacent
      */
-    private static List<IntegerPosition> getAdjacentPositions(IntegerPosition pos) {
-        List<IntegerPosition> adjacentPositions = new ArrayList<>(16);
+    private static ArrayList<LngLat> getAdjacentPositions(LngLat pos) {
+        ArrayList<LngLat> adjacentPositions = new ArrayList<>(16);
 
-        for (int i = 0; i < 8; i++) {
-            adjacentPositions.add(pos.changeDirection(i, 1));
-            adjacentPositions.add(pos.changeDirection(i, -1));
+        for (LngLat offset : offsets) {
+            adjacentPositions.add(pos.add(offset));
         }
 
         return adjacentPositions;
@@ -128,13 +73,12 @@ public class AStar {
         Node finalNode = null;
 
         PriorityQueue<Node> boundaryQueue = new PriorityQueue<>(Comparator.comparingDouble(node -> node.totalCost));
-        Map<IntegerPosition, Node> boundaryMap = new HashMap<>();
-        Set<IntegerPosition> closedSet = new HashSet<>();
+        Map<LngLat, Node> boundaryMap = new HashMap<>();
+        Set<LngLat> closedSet = new HashSet<>();
 
         // Initially, just add the starting node
-        IntegerPosition startPosition = new IntegerPosition();
-        boundaryQueue.add(new Node(startPosition, null, 0, Utils.getDistance(from, to)));
-        boundaryMap.put(startPosition, new Node(startPosition, null, 0, Utils.getDistance(from, to)));
+        boundaryQueue.add(new Node(from, null, 0, Utils.getDistance(from, to)));
+        boundaryMap.put(from, new Node(from, null, 0, Utils.getDistance(from, to)));
 
         // While there is at least one boundary node
         while (!boundaryQueue.isEmpty()) {
@@ -145,8 +89,6 @@ public class AStar {
             if (closedSet.contains(current.position)) continue;
             // If above max cost, just skip this node
             if (current.totalCost > maxCost) continue;
-
-            LngLat currentLngLat = current.position.getLngLat(from);
 
             // Remove current node from boundary nodes
             boundaryMap.remove(current.position);
@@ -163,17 +105,15 @@ public class AStar {
             // Otherwise, recalculate all costs for neighboring nodes
             // and if that node is already present, update the cost if it's
             // smaller
-            List<IntegerPosition> nextPositions = getAdjacentPositions(current.position);
+            List<LngLat> nextPositions = getAdjacentPositions(current.position);
 
             // For all next nodes
-            for (IntegerPosition nextPosition : nextPositions) {
+            for (LngLat nextPosition : nextPositions) {
                 // If this node is already present in the closedNodes don't do anything
                 if (closedSet.contains(nextPosition)) continue;
 
-                LngLat nextLngLat = nextPosition.getLngLat(from);
-
                 // If this step intersects with any of the lines we can't cross, continue
-                Raycasting.Line stepLine = new Raycasting.Line(currentLngLat, nextLngLat);
+                Raycasting.Line stepLine = new Raycasting.Line(current.position, nextPosition);
                 boolean intersects = false;
                 for (Raycasting.Line line : regionLines) {
                     if (Raycasting.intersects(stepLine, line)) {
@@ -185,7 +125,7 @@ public class AStar {
 
                 Node existingNode = boundaryMap.get(nextPosition);
                 double newGCost = current.gCost + 0.00015;
-                double newFCost = newGCost + Utils.getDistance(nextLngLat, to) * 1.05;
+                double newFCost = newGCost + Utils.getDistance(nextPosition, to) * 1.1;
                 // If a node is already in the boundary
                 if (existingNode == null) {
                     // Add new node to boundary
@@ -211,7 +151,7 @@ public class AStar {
         List<LngLat> path = new ArrayList<>();
         double cost = finalNode.gCost;
         while (finalNode != null) {
-            path.add(finalNode.position.getLngLat(from));
+            path.add(finalNode.position);
             finalNode = finalNode.previous;
         }
 

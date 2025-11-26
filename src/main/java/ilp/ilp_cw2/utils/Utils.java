@@ -1,6 +1,5 @@
 package ilp.ilp_cw2.utils;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import ilp.ilp_cw2.dtos.*;
 import ilp.ilp_cw2.raycasting.Raycasting;
 import ilp.ilp_cw2.types.LngLat;
@@ -8,10 +7,7 @@ import ilp.ilp_cw2.types.LngLatAlt;
 import ilp.ilp_cw2.types.Region;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.*;
 
 public class Utils {
     /**
@@ -192,8 +188,8 @@ public class Utils {
         return false;
     }
 
-    public static List<Raycasting.Line> regionsToLines(Region[] regions) {
-        List<Raycasting.Line> lines = new ArrayList<>();
+    public static ArrayList<Raycasting.Line> regionsToLines(Region[] regions) {
+        ArrayList<Raycasting.Line> lines = new ArrayList<>();
         for (Region region : regions) {
             for (int i = 0; i < region.vertices.size() - 1; i++) {
                 Raycasting.Line line = new Raycasting.Line(region.vertices.get(i), region.vertices.get(i + 1));
@@ -230,9 +226,54 @@ public class Utils {
         return returnValue;
     }
 
+    /**
+     * Given a set of things, returns a set of set of lists of all sublists
+     * e.g.
+     * {A, B, C} -> { {{ A, B, C }}, {{ A, B }, { C }}, {{ A }, { B, C }}, {{ A, C }, { B }}, {{ A }, { B }, { C }} }
+     * @param set
+     * @return
+     * @param <T>
+     */
+    public static <T> HashSet<HashSet<HashSet<T>>> getSubsets(HashSet<T> set) {
+        HashSet<HashSet<HashSet<T>>> sets = new HashSet<>();
+
+        // Add the original set to your return set
+        HashSet<HashSet<T>> originalSet = new HashSet<>();
+        originalSet.add(set);
+        sets.add(originalSet);
+
+        if (set.size() == 1) return sets;
+
+        for (T element : set) {
+            HashSet<T> copySet = new HashSet<>(set);
+            copySet.remove(element);
+
+            HashSet<T> elementAsSet = new HashSet<>();
+            elementAsSet.add(element);
+
+            HashSet<HashSet<HashSet<T>>> subsets = getSubsets(copySet);
+            for (HashSet<HashSet<T>> subset : subsets) {
+                subset.add(elementAsSet);
+                sets.add(subset);
+            }
+        }
+
+        return sets;
+    };
+
     private static final boolean queryAvailableDronesDebug = true;
-    public static List<Drone> queryAvailableDrones(
-            MedDispatchRec[] medDispatchRecs,
+
+    /**
+     * Given some params, returns a list of drones that can complete this list of medDispatchRecords,
+     * and for what estimated cost
+     * @param medDispatchRecs
+     * @param drones
+     * @param dronesForServicePoints
+     * @param servicePoints
+     * @return
+     */
+    public static List<Pair<Drone, Double>> queryAvailableDrones(
+            ArrayList<MedDispatchRec> medDispatchRecs,
             Drone[] drones,
             DronesForServicePoint[] dronesForServicePoints,
             ServicePoint[] servicePoints
@@ -340,7 +381,16 @@ public class Utils {
             totalCost += drone.capability.getCostInitial();
             totalCost += drone.capability.getCostFinal();
 
-            double proRataCost = totalCost / medDispatchRecs.length;
+            double proRataCost = totalCost / medDispatchRecs.size();
+            drone.estimatedCost = proRataCost;
+
+            double totalEstimatedMoves = totalDistance / 0.00015;
+
+            if (totalEstimatedMoves > drone.capability.getMaxMoves()) {
+                if (queryAvailableDronesDebug)
+                    System.out.println("Estimated move cost too high (" + totalEstimatedMoves + " > " + drone.capability.getMaxMoves() + ")");
+                return false;
+            }
 
             if (totalCostNeeded) {
                 if (queryAvailableDronesDebug)
@@ -368,34 +418,34 @@ public class Utils {
             if (queryAvailableDronesDebug)
                 System.out.println("Drone " + drone.id + " matches with all medDispatchRecs");
             return true;
-        }).toList();
+        }).map(drone -> new Pair<>(drone, drone.estimatedCost)).toList();
     }
 
-    public static List<LngLat> pathFromPoints(List<LngLat> points, List<Raycasting.Line> lines) {
-        List<LngLat> path = new ArrayList<>();
+    public static ArrayList<LngLat> pathFromPoints(ArrayList<LngLat> points, ArrayList<Raycasting.Line> lines) {
+        ArrayList<LngLat> path = new ArrayList<>();
 
         for (int i = 0; i < points.size() - 1; i++) {
-            if (i == 0) path.addAll(AStar.AStarPathWithCost(points.get(i), points.get(i + 1), 100, lines).first);
-            else path.addAll(AStar.AStarPathWithCost(path.getLast(), points.get(i + 1), 100, lines).first);
+            if (i == 0) path.addAll(AStarIntegerPosition.AStarPathWithCost(points.get(i), points.get(i + 1), 100, lines).first);
+            else path.addAll(AStarIntegerPosition.AStarPathWithCost(path.getLast(), points.get(i + 1), 100, lines).first);
         }
 
         return path;
     }
 
-    public static Pair<List<LngLat>, List<LngLat>> bestDeliveryOrderingPathAStar(LngLat servicePoint, ArrayList<LngLat> deliveryPoints, List<Raycasting.Line> lines) {
+    public static Pair<ArrayList<LngLat>, ArrayList<LngLat>> bestDeliveryOrderingPathAStar(LngLat servicePoint, ArrayList<LngLat> deliveryPoints, ArrayList<Raycasting.Line> lines) {
         // A valid delivery path must start and end at the service point
 
         // Generate all permutations of delivery points
         ArrayList<ArrayList<LngLat>> permutations = generatePermutations(deliveryPoints);
 
-        List<LngLat> bestDeliveryOrder = null;
-        List<LngLat> bestDeliveryPath = null;
+        ArrayList<LngLat> bestDeliveryOrder = null;
+        ArrayList<LngLat> bestDeliveryPath = null;
 
-        for (List<LngLat> ordering : permutations) {
+        for (ArrayList<LngLat> ordering : permutations) {
             ordering.addFirst(servicePoint);
             ordering.addLast(servicePoint);
 
-            List<LngLat> path = pathFromPoints(ordering, lines);
+            ArrayList<LngLat> path = pathFromPoints(ordering, lines);
 
             if (bestDeliveryPath == null) {
                 bestDeliveryPath = path;
@@ -409,16 +459,16 @@ public class Utils {
         return new Pair<>(bestDeliveryOrder, bestDeliveryPath);
     }
 
-    public static Pair<List<LngLat>, List<LngLat>> bestDeliveryOrderingPathEuclidean(LngLat servicePoint, ArrayList<LngLat> deliveryPoints, List<Raycasting.Line> lines) {
+    public static Pair<ArrayList<LngLat>, ArrayList<LngLat>> bestDeliveryOrderingPathEuclidean(LngLat servicePoint, ArrayList<LngLat> deliveryPoints, ArrayList<Raycasting.Line> lines) {
         // A valid delivery path must start and end at the service point
 
         // Generate all permutations of delivery points
         ArrayList<ArrayList<LngLat>> permutations = generatePermutations(deliveryPoints);
 
-        List<LngLat> bestDeliveryOrder = null;
+        ArrayList<LngLat> bestDeliveryOrder = null;
         double shortestDistance = Double.MAX_VALUE;
 
-        for (List<LngLat> ordering : permutations) {
+        for (ArrayList<LngLat> ordering : permutations) {
             ordering.addFirst(servicePoint);
             ordering.addLast(servicePoint);
 

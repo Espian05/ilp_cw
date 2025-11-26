@@ -3,24 +3,18 @@ package ilp.ilp_cw2.controllers;
 import ilp.ilp_cw2.dtos.*;
 import ilp.ilp_cw2.raycasting.Raycasting;
 import ilp.ilp_cw2.types.LngLat;
-import ilp.ilp_cw2.types.LngLatAlt;
 import ilp.ilp_cw2.types.Region;
-import ilp.ilp_cw2.utils.AStar;
+import ilp.ilp_cw2.utils.AStarIntegerPosition;
 import ilp.ilp_cw2.utils.GeoJson;
 import ilp.ilp_cw2.utils.Pair;
 import ilp.ilp_cw2.utils.Utils;
-import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Timer;
+import java.util.*;
 
 @RestController
 public class LessBasicController {
@@ -134,121 +128,318 @@ public class LessBasicController {
     }
 
     @PostMapping(endpointStart + "/queryAvailableDrones")
-    public ResponseEntity<List<String>> queryAvailableDrones(@RequestBody MedDispatchRec[] medDispatchRecs) {
+    public ResponseEntity<List<String>> queryAvailableDrones(@RequestBody ArrayList<MedDispatchRec> medDispatchRecs) {
         Drone[] drones = restTemplate.getForObject(ilpEndpoint + "/drones", Drone[].class);
         DronesForServicePoint[] dronesForServicePoints = restTemplate.getForObject(ilpEndpoint + "/drones-for-service-points", DronesForServicePoint[].class);
         ServicePoint[] servicePoints = restTemplate.getForObject(ilpEndpoint + "/service-points", ServicePoint[].class);
 
-        List<Drone> availableDrones = Utils.queryAvailableDrones(medDispatchRecs, drones, dronesForServicePoints, servicePoints);
-        return ResponseEntity.ok(availableDrones.stream().map(drone -> drone.id).toList());
+        List<Pair<Drone, Double>> availableDrones = Utils.queryAvailableDrones(medDispatchRecs, drones, dronesForServicePoints, servicePoints);
+        return ResponseEntity.ok(availableDrones.stream().map(pair -> pair.first.id).toList());
     }
 
     @PostMapping(endpointStart + "/calcDeliveryPath")
-    public ResponseEntity<DeliveryPaths> calcDeliveryPath(@RequestBody MedDispatchRec[] medDispatchRecs) {
+    public ResponseEntity<DeliveryPaths> calcDeliveryPath(@RequestBody ArrayList<MedDispatchRec> medDispatchRecs) {
         Drone[] drones = restTemplate.getForObject(ilpEndpoint + "/drones", Drone[].class);
         DronesForServicePoint[] dronesForServicePoints = restTemplate.getForObject(ilpEndpoint + "/drones-for-service-points", DronesForServicePoint[].class);
         ServicePoint[] servicePoints = restTemplate.getForObject(ilpEndpoint + "/service-points", ServicePoint[].class);
         RestrictedArea[] restrictedAreas = restTemplate.getForObject(ilpEndpoint + "/restricted-areas", RestrictedArea[].class);
 
-        // Get available drones
-        List<Drone> availableDrones = Utils.queryAvailableDrones(medDispatchRecs, drones, dronesForServicePoints, servicePoints);
+        // Get all sublists of the medDispatchRecs
 
-        // If no available drones, return an empty object
-        if (availableDrones.isEmpty()) {
+        // Create a set of all the medDispatchRecs
+        HashSet<MedDispatchRec> medDispatchRecSet = new HashSet<>(medDispatchRecs);
+
+        // Get all subsets of medDispatchRecs
+        HashSet<HashSet<HashSet<MedDispatchRec>>> medDispatchRecSubsets = Utils.getSubsets(medDispatchRecSet);
+
+        // Turn the subsets into sublists
+        ArrayList<ArrayList<ArrayList<MedDispatchRec>>> medDispatchRecSubsetLists = new ArrayList<>();
+        for (HashSet<HashSet<MedDispatchRec>> hashSetHashSet : medDispatchRecSubsets) {
+            ArrayList<ArrayList<MedDispatchRec>> subsetLists = new ArrayList<>();
+            for (HashSet<MedDispatchRec> hashSet : hashSetHashSet) {
+                ArrayList<MedDispatchRec> subsetList = new ArrayList<>();
+                for (MedDispatchRec medDispatchRec : hashSet) {
+                    subsetList.add(medDispatchRec);
+                }
+                subsetLists.add(subsetList);
+            }
+            medDispatchRecSubsetLists.add(subsetLists);
+        }
+
+        // For each sublist, run queryAvailableDrones
+        ArrayList<ArrayList<Pair<Drone, Double>>> deliveryProposalSublists = new ArrayList<>();
+        for (ArrayList<ArrayList<MedDispatchRec>> sublistList : medDispatchRecSubsetLists) {
+            // This is a list of groupings of medDispatchRec
+            // Goal is to pair a drone with each of these groupings
+            ArrayList<Pair<Drone, Double>> deliveryProposalPairList = new ArrayList<>();
+            for (ArrayList<MedDispatchRec> subsetList : sublistList) {
+                List<Pair<Drone, Double>> deliveryProposalPairs = Utils.queryAvailableDrones(subsetList, drones, dronesForServicePoints, servicePoints);
+
+                // If there are no drones that can complete this dispatch, add a null pair
+                if (deliveryProposalPairs.isEmpty()) {
+                    deliveryProposalPairList.add(null);
+                    continue;
+                }
+
+                // Find the lowest cost pair
+                Pair<Drone, Double> bestPair = deliveryProposalPairs.getFirst();
+                for (Pair<Drone, Double> pair : deliveryProposalPairs.subList(1, deliveryProposalPairs.size())) {
+                    if (pair.second < bestPair.second) bestPair = pair;
+                }
+
+                // Add the lowest cost pair our list
+                deliveryProposalPairList.add(bestPair);
+            }
+            deliveryProposalSublists.add(deliveryProposalPairList);
+        }
+        // I end up with a list of pairs of a sublist of medDispatchRec and the drones that can do it
+
+        // Total the cost for all subgroups that are able to be completed
+        ArrayList<Double> deliveryCosts = new ArrayList<>();
+        for (ArrayList<Pair<Drone, Double>> deliveryProposalPairList : deliveryProposalSublists) {
+            Double deliveryCost = 0.0;
+            for (Pair<Drone, Double> pair : deliveryProposalPairList) {
+                // If we find a null instead of a pair, this sublist was not completable
+                if (pair == null) {
+                    deliveryCost = null;
+                    break;
+                }
+                // Otherwise, add the cost
+                deliveryCost += pair.second;
+            }
+            deliveryCosts.add(deliveryCost);
+        }
+
+        // Find the group with the lowest cost
+        ArrayList<Pair<Drone, Double>> bestDeliveryProposal = null;
+        ArrayList<ArrayList<MedDispatchRec>> bestDeliveryRecSubsets = null;
+        double lowestCostPlan = Double.MAX_VALUE;
+        for (int i = 0; i < deliveryCosts.size(); i++) {
+            if (deliveryCosts.get(i) == null) continue;
+            if (deliveryCosts.get(i) >= lowestCostPlan) continue;
+            lowestCostPlan = deliveryCosts.get(i);
+            bestDeliveryProposal = deliveryProposalSublists.get(i);
+            bestDeliveryRecSubsets = medDispatchRecSubsetLists.get(i);
+        }
+
+        // If there is no valid plan return empty object
+        if (bestDeliveryProposal == null) {
             return ResponseEntity.ok(new DeliveryPaths());
         }
-
-        // Select my drone
-        Drone drone = availableDrones.getFirst();
-
-        // Get list of delivery points from the medDispatchRecs
-        ArrayList<LngLat> deliveryPoints = new ArrayList<>();
-        for (MedDispatchRec rec : medDispatchRecs) {
-            deliveryPoints.add(rec.getDelivery());
-        }
-
-        // Calculate paths in order of occurrence for now
-        List<LngLat> pointsToPathThrough = new ArrayList<>();
-        pointsToPathThrough.add(drone.servicePointPosition);
-        pointsToPathThrough.addAll(deliveryPoints);
-        pointsToPathThrough.add(drone.servicePointPosition);
 
         // Get the lines from the restricted areas
         Region[] regions = Utils.restrictedAreasToRegions(restrictedAreas).toArray(new Region[0]);
         List<Raycasting.Line> lines = Utils.regionsToLines(regions);
 
-        // Get the best ordering of the points
-        ArrayList<LngLat> bestOrdering = Utils.bestDeliveryOrderingEuclidean(drone.servicePointPosition, deliveryPoints);
-
-        // Calculate paths
-        List<List<LngLat>> paths = new ArrayList<>();
+        // Generate list of paths for each grouping
+        ArrayList<DronePath> dronePaths = new ArrayList<>();
         int totalMoves = 0;
-        for (int i = 0; i < bestOrdering.size() - 1; i++) {
-            List<LngLat> path;
-            if (i == 0) path = AStar.AStarPathWithCost(bestOrdering.get(i), bestOrdering.get(i + 1), 100, lines).first;
-            else path = AStar.AStarPathWithCost(paths.getLast().getLast(), bestOrdering.get(i + 1), 100, lines).first;
-            path.add(path.getLast());
-            totalMoves += path.size() - 1;
-            paths.add(path);
+        double totalCost = 0;
+        for (int i = 0; i < bestDeliveryRecSubsets.size(); i++) {
+            // Get list of delivery points from the medDispatchRecs
+            ArrayList<LngLat> deliveryPoints = new ArrayList<>();
+            for (MedDispatchRec rec : bestDeliveryRecSubsets.get(i)) {
+                deliveryPoints.add(rec.getDelivery());
+            }
+
+            Drone drone = bestDeliveryProposal.get(i).first;
+
+            // Get the best ordering of the points
+            ArrayList<LngLat> bestOrdering = Utils.bestDeliveryOrderingEuclidean(drone.servicePointPosition, deliveryPoints);
+
+            // Calculate paths
+            ArrayList<ArrayList<LngLat>> paths = new ArrayList<>();
+            int thisDroneMoves = 0;
+            for (int x = 0; x < bestOrdering.size() - 1; x++) {
+                ArrayList<LngLat> path;
+                if (x == 0) path = AStarIntegerPosition.AStarPathWithCost(bestOrdering.get(x), bestOrdering.get(x + 1), 100, lines).first;
+                else path = AStarIntegerPosition.AStarPathWithCost(paths.getLast().getLast(), bestOrdering.get(x + 1), 100, lines).first;
+                path.add(path.getLast());
+                thisDroneMoves += path.size() - 1;
+                paths.add(path);
+            }
+
+            // Convert paths to a drone path
+            DronePath dronePath = new DronePath();
+            dronePath.droneId = drone.id;
+
+            List<Delivery> deliveries = new ArrayList<>();
+            for (int index = 0; index < paths.size(); index++) {
+                Delivery delivery = new Delivery();
+                if (index < bestDeliveryRecSubsets.get(i).size()) delivery.deliveryId = bestDeliveryRecSubsets.get(i).get(index).getId();
+                else delivery.deliveryId = null;
+                delivery.flightPath = paths.get(index);
+                deliveries.add(delivery);
+            }
+            dronePath.deliveries = deliveries.toArray(new Delivery[0]);
+
+            totalCost += thisDroneMoves * drone.capability.getCostPerMove() + drone.capability.getCostInitial() + drone.capability.getCostFinal();
+            totalMoves += thisDroneMoves;
+
+            dronePaths.add(dronePath);
         }
 
         // Convert paths to delivery paths
         DeliveryPaths deliveryPaths = new DeliveryPaths();
 
-        deliveryPaths.totalCost = totalMoves * drone.capability.getCostPerMove() + drone.capability.getCostInitial() + drone.capability.getCostFinal();
+        deliveryPaths.totalCost = totalCost;
         deliveryPaths.totalMoves = totalMoves;
 
-        List<DronePath> dronePaths = new ArrayList<>();
-        DronePath dronePath = new DronePath();
-        dronePath.droneId = drone.id;
-
-        List<Delivery> deliveries = new ArrayList<>();
-        for (int i = 0; i < paths.size(); i++) {
-            Delivery delivery = new Delivery();
-            if (i < medDispatchRecs.length) delivery.deliveryId = medDispatchRecs[i].getId();
-            else delivery.deliveryId = null;
-            delivery.flightPath = paths.get(i).toArray(new LngLat[0]);
-            deliveries.add(delivery);
-        }
-        dronePath.deliveries = deliveries.toArray(new Delivery[0]);
-
-        dronePaths.add(dronePath);
-
-        deliveryPaths.dronePaths = dronePaths.toArray(new DronePath[0]);
+        deliveryPaths.dronePaths = dronePaths;
 
         return ResponseEntity.ok(deliveryPaths);
     }
 
     @PostMapping(endpointStart + "/calcDeliveryPathAsGeoJson")
-    public ResponseEntity<String> calcDeliveryPathAsGeoJson(@RequestBody MedDispatchRec[] medDispatchRecs) throws JSONException {
+    public ResponseEntity<String> calcDeliveryPathAsGeoJson(@RequestBody ArrayList<MedDispatchRec> medDispatchRecs) throws JSONException {
         Drone[] drones = restTemplate.getForObject(ilpEndpoint + "/drones", Drone[].class);
         DronesForServicePoint[] dronesForServicePoints = restTemplate.getForObject(ilpEndpoint + "/drones-for-service-points", DronesForServicePoint[].class);
         ServicePoint[] servicePoints = restTemplate.getForObject(ilpEndpoint + "/service-points", ServicePoint[].class);
         RestrictedArea[] restrictedAreas = restTemplate.getForObject(ilpEndpoint + "/restricted-areas", RestrictedArea[].class);
 
-        // Get available drones
-        List<Drone> availableDrones = Utils.queryAvailableDrones(medDispatchRecs, drones, dronesForServicePoints, servicePoints);
+        // Get all sublists of the medDispatchRecs
 
-        // If no available drones, return an empty object
-        if (availableDrones.isEmpty()) {
-            return ResponseEntity.ok("");
+        // Create a set of all the medDispatchRecs
+        HashSet<MedDispatchRec> medDispatchRecSet = new HashSet<>(medDispatchRecs);
+
+        // Get all subsets of medDispatchRecs
+        HashSet<HashSet<HashSet<MedDispatchRec>>> medDispatchRecSubsets = Utils.getSubsets(medDispatchRecSet);
+
+        // Turn the subsets into sublists
+        ArrayList<ArrayList<ArrayList<MedDispatchRec>>> medDispatchRecSubsetLists = new ArrayList<>();
+        for (HashSet<HashSet<MedDispatchRec>> hashSetHashSet : medDispatchRecSubsets) {
+            ArrayList<ArrayList<MedDispatchRec>> subsetLists = new ArrayList<>();
+            for (HashSet<MedDispatchRec> hashSet : hashSetHashSet) {
+                ArrayList<MedDispatchRec> subsetList = new ArrayList<>();
+                for (MedDispatchRec medDispatchRec : hashSet) {
+                    subsetList.add(medDispatchRec);
+                }
+                subsetLists.add(subsetList);
+            }
+            medDispatchRecSubsetLists.add(subsetLists);
         }
 
-        // Select my drone
-        Drone drone = availableDrones.getFirst();
+        // For each sublist, run queryAvailableDrones
+        ArrayList<ArrayList<Pair<Drone, Double>>> deliveryProposalSublists = new ArrayList<>();
+        for (ArrayList<ArrayList<MedDispatchRec>> sublistList : medDispatchRecSubsetLists) {
+            // This is a list of groupings of medDispatchRec
+            // Goal is to pair a drone with each of these groupings
+            ArrayList<Pair<Drone, Double>> deliveryProposalPairList = new ArrayList<>();
+            for (ArrayList<MedDispatchRec> subsetList : sublistList) {
+                List<Pair<Drone, Double>> deliveryProposalPairs = Utils.queryAvailableDrones(subsetList, drones, dronesForServicePoints, servicePoints);
+
+                // If there are no drones that can complete this dispatch, add a null pair
+                if (deliveryProposalPairs.isEmpty()) {
+                    deliveryProposalPairList.add(null);
+                    continue;
+                }
+
+                // Find the lowest cost pair
+                Pair<Drone, Double> bestPair = deliveryProposalPairs.getFirst();
+                for (Pair<Drone, Double> pair : deliveryProposalPairs.subList(1, deliveryProposalPairs.size())) {
+                    if (pair.second < bestPair.second) bestPair = pair;
+                }
+
+                // Add the lowest cost pair our list
+                deliveryProposalPairList.add(bestPair);
+            }
+            deliveryProposalSublists.add(deliveryProposalPairList);
+        }
+        // I end up with a list of pairs of a sublist of medDispatchRec and the drones that can do it
+
+        // Total the cost for all subgroups that are able to be completed
+        ArrayList<Double> deliveryCosts = new ArrayList<>();
+        for (ArrayList<Pair<Drone, Double>> deliveryProposalPairList : deliveryProposalSublists) {
+            Double deliveryCost = 0.0;
+            for (Pair<Drone, Double> pair : deliveryProposalPairList) {
+                // If we find a null instead of a pair, this sublist was not completable
+                if (pair == null) {
+                    deliveryCost = null;
+                    break;
+                }
+                // Otherwise, add the cost
+                deliveryCost += pair.second;
+            }
+            deliveryCosts.add(deliveryCost);
+        }
+
+        // Find the group with the lowest cost
+        ArrayList<Pair<Drone, Double>> bestDeliveryProposal = null;
+        ArrayList<ArrayList<MedDispatchRec>> bestDeliveryRecSubsets = null;
+        double lowestCostPlan = Double.MAX_VALUE;
+        for (int i = 0; i < deliveryCosts.size(); i++) {
+            if (deliveryCosts.get(i) == null) continue;
+            if (deliveryCosts.get(i) >= lowestCostPlan) continue;
+            lowestCostPlan = deliveryCosts.get(i);
+            bestDeliveryProposal = deliveryProposalSublists.get(i);
+            bestDeliveryRecSubsets = medDispatchRecSubsetLists.get(i);
+        }
+
+        // If there is no valid plan return empty object
+        if (bestDeliveryProposal == null) {
+            return ResponseEntity.ok("");
+        }
 
         // Get the lines from the restricted areas
         Region[] regions = Utils.restrictedAreasToRegions(restrictedAreas).toArray(new Region[0]);
         List<Raycasting.Line> lines = Utils.regionsToLines(regions);
 
-        // Get list of delivery points from the medDispatchRecs
-        ArrayList<LngLat> deliveryPoints = new ArrayList<>();
-        for (MedDispatchRec rec : medDispatchRecs) {
-            deliveryPoints.add(rec.getDelivery());
+        // Generate list of paths for each grouping
+        ArrayList<DronePath> dronePaths = new ArrayList<>();
+        int totalMoves = 0;
+        double totalCost = 0;
+        for (int i = 0; i < bestDeliveryRecSubsets.size(); i++) {
+            // Get list of delivery points from the medDispatchRecs
+            ArrayList<LngLat> deliveryPoints = new ArrayList<>();
+            for (MedDispatchRec rec : bestDeliveryRecSubsets.get(i)) {
+                deliveryPoints.add(rec.getDelivery());
+            }
+
+            Drone drone = bestDeliveryProposal.get(i).first;
+
+            // Get the best ordering of the points
+            ArrayList<LngLat> bestOrdering = Utils.bestDeliveryOrderingEuclidean(drone.servicePointPosition, deliveryPoints);
+
+            // Calculate paths
+            ArrayList<ArrayList<LngLat>> paths = new ArrayList<>();
+            int thisDroneMoves = 0;
+            for (int x = 0; x < bestOrdering.size() - 1; x++) {
+                ArrayList<LngLat> path;
+                if (x == 0) path = AStarIntegerPosition.AStarPathWithCost(bestOrdering.get(x), bestOrdering.get(x + 1), 100, lines).first;
+                else path = AStarIntegerPosition.AStarPathWithCost(paths.getLast().getLast(), bestOrdering.get(x + 1), 100, lines).first;
+                path.add(path.getLast());
+                thisDroneMoves += path.size() - 1;
+                paths.add(path);
+            }
+
+            // Convert paths to a drone path
+            DronePath dronePath = new DronePath();
+            dronePath.droneId = drone.id;
+
+            List<Delivery> deliveries = new ArrayList<>();
+            for (int index = 0; index < paths.size(); index++) {
+                Delivery delivery = new Delivery();
+                if (index < bestDeliveryRecSubsets.get(i).size()) delivery.deliveryId = bestDeliveryRecSubsets.get(i).get(index).getId();
+                else delivery.deliveryId = null;
+                delivery.flightPath = paths.get(index);
+                deliveries.add(delivery);
+            }
+            dronePath.deliveries = deliveries.toArray(new Delivery[0]);
+
+            totalCost += thisDroneMoves * drone.capability.getCostPerMove() + drone.capability.getCostInitial() + drone.capability.getCostFinal();
+            totalMoves += thisDroneMoves;
+
+            dronePaths.add(dronePath);
         }
 
-        List<LngLat> bestPath = Utils.bestDeliveryOrderingPathEuclidean(drone.servicePointPosition, deliveryPoints, lines).second;
-        return ResponseEntity.ok(GeoJson.toGeoJsonWithRegions(new ArrayList<>(){{add(bestPath);}}, restrictedAreas));
+        ArrayList<ArrayList<LngLat>> paths = new ArrayList<>();
+        for (DronePath dronePath : dronePaths) {
+            for (Delivery delivery : dronePath.deliveries) {
+                paths.add(delivery.flightPath);
+            }
+        }
+
+        return ResponseEntity.ok(GeoJson.toGeoJsonWithRegions(paths, restrictedAreas));
     }
 
     @GetMapping("/A_Star_Test")
@@ -280,10 +471,22 @@ public class LessBasicController {
         deliveryPoints.add(hamilton);
 
         Region[] regions = Utils.restrictedAreasToRegions(restrictedAreas).toArray(new Region[0]);
-        List<Raycasting.Line> lines = Utils.regionsToLines(regions);
+        ArrayList<Raycasting.Line> lines = Utils.regionsToLines(regions);
 
 
-        List<LngLat> bestPath = Utils.bestDeliveryOrderingPathEuclidean(appleton, deliveryPoints, lines).second;
+        ArrayList<LngLat> bestPath = Utils.bestDeliveryOrderingPathEuclidean(appleton, deliveryPoints, lines).second;
         return ResponseEntity.ok(GeoJson.toGeoJsonWithRegions(new ArrayList<>(){{add(bestPath);}}, restrictedAreas));
+    }
+
+    @GetMapping("/sublist_test")
+    public static ResponseEntity<String> sublistTest() {
+        ArrayList<String> test_list = new ArrayList<>();
+        test_list.add("A");
+        test_list.add("B");
+        test_list.add("C");
+
+        HashSet<String> set = new HashSet<>(test_list);
+
+        return ResponseEntity.ok(Utils.getSubsets(set).toString());
     }
 }

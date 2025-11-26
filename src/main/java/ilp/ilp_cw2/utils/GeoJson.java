@@ -41,7 +41,7 @@ public class GeoJson {
         return response.toString();
     }
 
-    public static String toGeoJsonWithRegions(List<List<LngLat>> pointsLists, RestrictedArea[] restrictedAreas) throws JSONException {
+    public static String toGeoJsonWithRegions(ArrayList<ArrayList<LngLat>> pointsLists, RestrictedArea[] restrictedAreas) throws JSONException {
         JSONObject response = new JSONObject();
         response.put("type", "FeatureCollection");
         JSONArray featuresArray = new JSONArray();

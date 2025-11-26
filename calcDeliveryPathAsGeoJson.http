@@ -188,3 +188,100 @@ Content-Type: application/json
     }
   }
 ]
+
+### POST Aisha_Test_1
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 123,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.5,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.186,
+      "lat": 55.945
+    }
+  },
+  {
+    "id": 124,
+    "date": "2025-12-22",
+    "time": "15:10",
+    "requirements": {
+      "capacity": 0.4,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.185,
+      "lat": 55.946
+    }
+  }
+]
+
+### POST Aisha_Test_2
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 201,
+    "date": "2025-12-01",
+    "time": "08:00:00",
+    "delivery": { "lng": -3.1865, "lat": 55.9447 },
+    "requirements": {
+      "capacity": 5.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": null
+    }
+  },
+  {
+    "id": 202,
+    "date": "2025-12-01",
+    "time": "19:00:00",
+    "delivery": { "lng": -3.1870, "lat": 55.9450 },
+    "requirements": {
+      "capacity": 5.0,
+      "cooling": false,
+      "heating": false,
+      "maxCost": null
+    }
+  }
+]
+
+### POST Aisha_Test_3
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 123,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.5,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.184,
+      "lat": 55.944
+    }
+  },
+  {
+    "id": 124,
+    "date": "2025-12-22",
+    "time": "15:10",
+    "requirements": {
+      "capacity": 0.4,
+      "maxCost": 50.0
+    },
+    "delivery": {
+      "lng": -3.188,
+      "lat": 55.946
+    }
+  }
+]
