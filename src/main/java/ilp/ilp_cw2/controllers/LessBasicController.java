@@ -41,38 +41,45 @@ public class LessBasicController {
     @GetMapping(endpointStart + "/dronesWithCooling/{state}")
     public ResponseEntity<List<String>> dronesWithCooling(@PathVariable boolean state) {
         Drone[] drones = restTemplate.getForObject(ilpEndpoint + "/drones", Drone[].class);
+        if (drones == null) return ResponseEntity.ok(new ArrayList<>());
 
-        return ResponseEntity.ok(Arrays.stream(drones).filter(drone -> {
-                return drone.capability != null && drone.capability.isCooling() == state;
-            }
-        ).map(drone -> {
-            return drone.getId();
-        }).toList());
+        return ResponseEntity.ok(
+                Arrays.stream(drones).filter(
+                drone -> drone.capability != null && drone.capability.isCooling() == state
+        ).map(Drone::getId).toList());
     }
 
     @GetMapping(endpointStart + "/droneDetails/{id}")
     public ResponseEntity<Drone> droneDetails(@PathVariable String id) {
         Drone[] drones = restTemplate.getForObject(ilpEndpoint + "/drones", Drone[].class);
+        if (drones == null) return ResponseEntity.ok(null);
 
-        return ResponseEntity.ok(Arrays.stream(drones).filter(drone -> { return drone.id.equals(id); }).toList().getFirst());
+        // Locate the drone with that id
+        List<Drone> dronesWithId = Arrays.stream(drones).filter(drone -> drone.id.equals(id)).toList();
+
+        // If no drones with the given id are found, return a 404 "not found"
+        // (the only time this is done in this coursework)
+        if (dronesWithId.isEmpty()) return ResponseEntity.notFound().build();
+
+        return ResponseEntity.ok(dronesWithId.getFirst());
     }
 
     @GetMapping(endpointStart + "/queryAsPath/{attribute}/{value}")
     public ResponseEntity<List<String>> queryAsPath(@PathVariable String attribute, @PathVariable String value) {
         Drone[] drones = restTemplate.getForObject(ilpEndpoint + "/drones", Drone[].class);
+        if (drones == null) return ResponseEntity.ok(new ArrayList<>());
 
-        return ResponseEntity.ok(Arrays.stream(drones).filter(drone -> {
-            return switch (attribute) {
-                case "cooling" -> drone.capability.isCooling() == Boolean.parseBoolean(value);
-                case "heating" -> drone.capability.isHeating() == Boolean.parseBoolean(value);
-                case "capacity" -> drone.capability.getCapacity() == Double.parseDouble(value);
-                case "maxMoves" -> drone.capability.getMaxMoves() == Integer.parseInt(value);
-                case "costPerMove" -> drone.capability.getCostPerMove() == Double.parseDouble(value);
-                case "costInitial" -> drone.capability.getCostInitial() == Double.parseDouble(value);
-                case "costFinal" -> drone.capability.getCostFinal() == Double.parseDouble(value);
-                default -> false;
-            };
-        }).map(drone -> { return drone.id; }).toList());
+        return ResponseEntity.ok(Arrays.stream(drones).filter(
+        drone -> switch (attribute) {
+            case "cooling" -> drone.capability.isCooling() == Boolean.parseBoolean(value);
+            case "heating" -> drone.capability.isHeating() == Boolean.parseBoolean(value);
+            case "capacity" -> drone.capability.getCapacity() == Double.parseDouble(value);
+            case "maxMoves" -> drone.capability.getMaxMoves() == Integer.parseInt(value);
+            case "costPerMove" -> drone.capability.getCostPerMove() == Double.parseDouble(value);
+            case "costInitial" -> drone.capability.getCostInitial() == Double.parseDouble(value);
+            case "costFinal" -> drone.capability.getCostFinal() == Double.parseDouble(value);
+            default -> false;
+        }).map(drone -> drone.id).toList());
     }
 
     @PostMapping(endpointStart + "/query")
@@ -93,6 +100,8 @@ public class LessBasicController {
                         default -> false;
                     };
                     case "!=" -> switch (attributeQuery.getAttribute()) {
+                        case "cooling" -> drone.capability.isCooling() != Boolean.parseBoolean(attributeQuery.getValue());
+                        case "heating" -> drone.capability.isHeating() != Boolean.parseBoolean(attributeQuery.getValue());
                         case "capacity" -> drone.capability.getCapacity() != Double.parseDouble(attributeQuery.getValue());
                         case "maxMoves" -> drone.capability.getMaxMoves() != Integer.parseInt(attributeQuery.getValue());
                         case "costPerMove" -> drone.capability.getCostPerMove() != Double.parseDouble(attributeQuery.getValue());
@@ -153,7 +162,10 @@ public class LessBasicController {
         Drone drone = availableDrones.getFirst();
 
         // Get list of delivery points from the medDispatchRecs
-        List<LngLat> deliveryPoints = Arrays.stream(medDispatchRecs).map(MedDispatchRec::getDelivery).toList();
+        ArrayList<LngLat> deliveryPoints = new ArrayList<>();
+        for (MedDispatchRec rec : medDispatchRecs) {
+            deliveryPoints.add(rec.getDelivery());
+        }
 
         // Calculate paths in order of occurrence for now
         List<LngLat> pointsToPathThrough = new ArrayList<>();
@@ -165,16 +177,19 @@ public class LessBasicController {
         Region[] regions = Utils.restrictedAreasToRegions(restrictedAreas).toArray(new Region[0]);
         List<Raycasting.Line> lines = Utils.regionsToLines(regions);
 
+        // Get the best ordering of the points
+        ArrayList<LngLat> bestOrdering = Utils.bestDeliveryOrderingEuclidean(drone.servicePointPosition, deliveryPoints);
+
         // Calculate paths
         List<List<LngLat>> paths = new ArrayList<>();
         int totalMoves = 0;
-        for (int i = 0; i < pointsToPathThrough.size() - 1; i++) {
+        for (int i = 0; i < bestOrdering.size() - 1; i++) {
             List<LngLat> path;
-            if (i == 0) path = AStar.AStarPathWithCost(pointsToPathThrough.get(i), pointsToPathThrough.get(i + 1), 100, lines).first;
-            else path = AStar.AStarPathWithCost(paths.getLast().getLast(), pointsToPathThrough.get(i + 1), 100, lines).first;
+            if (i == 0) path = AStar.AStarPathWithCost(bestOrdering.get(i), bestOrdering.get(i + 1), 100, lines).first;
+            else path = AStar.AStarPathWithCost(paths.getLast().getLast(), bestOrdering.get(i + 1), 100, lines).first;
             path.add(path.getLast());
+            totalMoves += path.size() - 1;
             paths.add(path);
-            totalMoves += path.size();
         }
 
         // Convert paths to delivery paths
@@ -227,29 +242,13 @@ public class LessBasicController {
         List<Raycasting.Line> lines = Utils.regionsToLines(regions);
 
         // Get list of delivery points from the medDispatchRecs
-        List<LngLat> deliveryPoints = Arrays.stream(medDispatchRecs).map(MedDispatchRec::getDelivery).toList();
-
-        List<LngLat> bestPath = Utils.bestDeliveryOrderingPathAStar(drone.servicePointPosition, deliveryPoints, lines).second;
-        return ResponseEntity.ok(GeoJson.toGeoJsonWithRegions(new ArrayList<>(){{add(bestPath);}}, restrictedAreas));
-
-        // Calculate paths in order of occurrence for now
-        /*
-        List<LngLat> pointsToPathThrough = new ArrayList<>();
-        pointsToPathThrough.add(drone.servicePointPosition);
-        pointsToPathThrough.addAll(deliveryPoints);
-        pointsToPathThrough.add(drone.servicePointPosition);
-
-        // Calculate paths
-        List<List<LngLat>> paths = new ArrayList<>();
-        for (int i = 0; i < pointsToPathThrough.size() - 1; i++) {
-            List<LngLat> path;
-            if (i == 0) path = AStar.AStarPathWithCost(pointsToPathThrough.get(i), pointsToPathThrough.get(i + 1), 100, lines).first;
-            else path = AStar.AStarPathWithCost(paths.getLast().getLast(), pointsToPathThrough.get(i + 1), 100, lines).first;
-            paths.add(path);
+        ArrayList<LngLat> deliveryPoints = new ArrayList<>();
+        for (MedDispatchRec rec : medDispatchRecs) {
+            deliveryPoints.add(rec.getDelivery());
         }
 
-        return ResponseEntity.ok(GeoJson.toGeoJsonWithRegions(paths, restrictedAreas));
-        */
+        List<LngLat> bestPath = Utils.bestDeliveryOrderingPathEuclidean(drone.servicePointPosition, deliveryPoints, lines).second;
+        return ResponseEntity.ok(GeoJson.toGeoJsonWithRegions(new ArrayList<>(){{add(bestPath);}}, restrictedAreas));
     }
 
     @GetMapping("/A_Star_Test")
@@ -270,15 +269,15 @@ public class LessBasicController {
 
         LngLat hafsas = new LngLat(-3.1851137499146205, 55.944578297383686);
 
-        List<LngLat> deliveryPoints = new ArrayList<>();
+        ArrayList<LngLat> deliveryPoints = new ArrayList<>();
         deliveryPoints.add(brightonStreet);
         deliveryPoints.add(annoyingPlace);
         deliveryPoints.add(annoyingPlace2);
         deliveryPoints.add(testPoint1);
         deliveryPoints.add(testPoint2);
         deliveryPoints.add(hafsas);
-        //deliveryPoints.add(oceanTerminal);
-        //deliveryPoints.add(hamilton);
+        deliveryPoints.add(oceanTerminal);
+        deliveryPoints.add(hamilton);
 
         Region[] regions = Utils.restrictedAreasToRegions(restrictedAreas).toArray(new Region[0]);
         List<Raycasting.Line> lines = Utils.regionsToLines(regions);

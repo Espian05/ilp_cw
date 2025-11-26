@@ -1,0 +1,260 @@
+### POST queryAvailableDrones
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 123,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.75,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 13.5
+    },
+
+    "delivery": {
+      "lng": -3.00,
+      "lat": 55.121
+    }
+  }
+]
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Request correct response body", function() {
+        client.assert(response.body == "", "Response body is not correct");
+    });
+%}
+
+### POST queryAvailableDrones
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-01-01",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.01,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 1000.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.941
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-01-02",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.01,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 1000.0
+    },
+    "delivery": {
+      "lng": -3.180,
+      "lat": 55.941
+    }
+  }
+]
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Request correct response body", function() {
+        client.assert(JSON.stringify(response.body) === JSON.stringify(["1","6","9"]), "Response body is not correct");
+    });
+%}
+
+### POST queryAvailableDrones
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-11-03",
+    "time": "10:00:00",
+    "requirements": {
+      "capacity": 3,
+      "maxCost": 6.0
+    },
+    "delivery": {
+      "lng": -3.1883,
+      "lat": 55.9444
+    }
+  }
+]
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Request correct response body", function() {
+        client.assert(JSON.stringify(response.body) === JSON.stringify(["4"]), "Response body is not correct");
+    });
+%}
+
+### POST queryAvailableDrones
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 123,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.75,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 13.5
+    },
+
+    "delivery": {
+      "lng": -3.00,
+      "lat": 55.121
+    }
+  }
+]
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Request correct response body", function() {
+        client.assert(JSON.stringify(response.body) === JSON.stringify([]), "Response body is not correct");
+    });
+%}
+
+### POST queryAvailableDrones
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-01-01",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.01,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 1000.0
+    },
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.941
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-01-02",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.01,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 1000.0
+    },
+    "delivery": {
+      "lng": -3.180,
+      "lat": 55.941
+    }
+  }
+]
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Request correct response body", function() {
+        client.assert(JSON.stringify(response.body) === JSON.stringify(["1","6","9"]), "Response body is not correct");
+    });
+%}
+
+### POST queryAvailableDrones
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-11-03",
+    "time": "10:00:00",
+    "requirements": {
+      "capacity": 3,
+      "maxCost": 6.0
+    },
+    "delivery": {
+      "lng": -3.1883,
+      "lat": 55.9444
+    }
+  }
+]
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Request correct response body", function() {
+        client.assert(JSON.stringify(response.body) === JSON.stringify(["4"]), "Response body is not correct");
+    });
+%}
+
+### POST queryAvailableDrones
+POST http://localhost:8080/api/v1/queryAvailableDrones
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-01-02",
+    "time": "12:00",
+    "requirements": {
+      "capacity": 4.0
+    },
+    "delivery": {
+      "lng": -3.280,
+      "lat": 55.941
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-01-02",
+    "time": "12:00",
+    "requirements": {
+      "capacity": 4.0
+    },
+    "delivery": {
+      "lng": -3.180,
+      "lat": 55.91
+    }
+  }
+]
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Request correct response body", function() {
+        client.assert(JSON.stringify(response.body) === JSON.stringify(["3", "8", "9"]), "Response body is not correct");
+    });
+%}

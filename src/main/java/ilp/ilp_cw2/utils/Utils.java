@@ -216,13 +216,13 @@ public class Utils {
         return returnValue;
     }
 
-    public static <T> List<List<T>> generatePermutations(List<T> list) {
+    public static <T> ArrayList<ArrayList<T>> generatePermutations(ArrayList<T> list) {
         if (list.size() == 1) return new ArrayList<>(){{add(list);}};
 
-        List<List<T>> returnValue = new ArrayList<>();
+        ArrayList<ArrayList<T>> returnValue = new ArrayList<>();
 
         for (T element : list) {
-            List<T> copyList = new ArrayList<>(list);
+            ArrayList<T> copyList = new ArrayList<>(list);
             copyList.remove(element);
             returnValue.addAll(generatePermutations(copyList).stream().peek(perm -> perm.addFirst(element)).toList());
         }
@@ -230,7 +230,7 @@ public class Utils {
         return returnValue;
     }
 
-    private static final boolean queryAvailableDronesDebug = false;
+    private static final boolean queryAvailableDronesDebug = true;
     public static List<Drone> queryAvailableDrones(
             MedDispatchRec[] medDispatchRecs,
             Drone[] drones,
@@ -245,6 +245,11 @@ public class Utils {
                         droneAvailabilityPairs.add(new Pair<>(availability, dronesForServicePoint.servicePointId));
                     }
                 }
+            }
+
+            if (queryAvailableDronesDebug) {
+                System.out.println();
+                System.out.println("Considering drone " + drone.id);
             }
 
             // The id of the service point that this drone can do these deliveries from
@@ -284,13 +289,13 @@ public class Utils {
                 // Now check through all requirements for this medDispatchRec
                 Requirements requirements = medDispatchRec.getRequirements();
                 if (requirements.getCooling() != null)
-                    if (requirements.getCooling() != drone.capability.isCooling()) {
+                    if (requirements.getCooling() && !drone.capability.isCooling()) {
                         if (queryAvailableDronesDebug)
                             System.out.println("Drone " + drone.id + " does not match the cooling requirement with medDispatchRec " + medDispatchRec.getId());
                         return false;
                     }
                 if (requirements.getHeating() != null)
-                    if (requirements.getHeating() != drone.capability.isHeating()) {
+                    if (requirements.getHeating() && !drone.capability.isHeating()) {
                         if (queryAvailableDronesDebug)
                             System.out.println("Drone " + drone.id + " does not match the heating requirement with medDispatchRec " + medDispatchRec.getId());
                         return false;
@@ -330,7 +335,7 @@ public class Utils {
                 totalDistance += Utils.getDistance(new LngLat(lngLatAlt.lng, lngLatAlt.lat), medDispatchRec.getDelivery());
             }
 
-            double totalCost = totalDistance / 0.0015;
+            double totalCost = totalDistance / 0.00015;
             totalCost *= drone.capability.getCostPerMove();
             totalCost += drone.capability.getCostInitial();
             totalCost += drone.capability.getCostFinal();
@@ -338,15 +343,25 @@ public class Utils {
             double proRataCost = totalCost / medDispatchRecs.length;
 
             if (totalCostNeeded) {
+                if (queryAvailableDronesDebug)
+                    System.out.println("Total Cost Needed. Considering all medDispatchRecs");
                 for (MedDispatchRec medDispatchRec : medDispatchRecs) {
-                    if (medDispatchRec.getRequirements().maxCostIsNull()) continue;
+                    if (medDispatchRec.getRequirements().maxCostIsNull()) {
+                        System.out.println("medDispatchRec " + medDispatchRec.getId() + " max cost is null");
+                        continue;
+                    }
+                    System.out.println("medDispatchRec " + medDispatchRec.getId() + " has max cost " + medDispatchRec.getRequirements().getMaxCost());
                     if (proRataCost > medDispatchRec.getRequirements().getMaxCost()) {
                         if (queryAvailableDronesDebug)
-                            System.out.println("Max cost is too high for medDispatchRec " +
-                                    medDispatchRec.getId() + " ( " + totalCost + " > " +
+                            System.out.println("Pro rata cost is too high for medDispatchRec " +
+                                    medDispatchRec.getId() + " ( " + proRataCost + " > " +
                                     medDispatchRec.getRequirements().getMaxCost() + ")");
                         return false;
                     }
+                    if (queryAvailableDronesDebug)
+                        System.out.println("Pro rata cost lower than medDispatchRec " +
+                                medDispatchRec.getId() + " ( " + proRataCost + " < " +
+                                medDispatchRec.getRequirements().getMaxCost() + ")");
                 }
             }
 
@@ -367,11 +382,11 @@ public class Utils {
         return path;
     }
 
-    public static Pair<List<LngLat>, List<LngLat>> bestDeliveryOrderingPathAStar(LngLat servicePoint, List<LngLat> deliveryPoints, List<Raycasting.Line> lines) {
+    public static Pair<List<LngLat>, List<LngLat>> bestDeliveryOrderingPathAStar(LngLat servicePoint, ArrayList<LngLat> deliveryPoints, List<Raycasting.Line> lines) {
         // A valid delivery path must start and end at the service point
 
         // Generate all permutations of delivery points
-        List<List<LngLat>> permutations = generatePermutations(deliveryPoints);
+        ArrayList<ArrayList<LngLat>> permutations = generatePermutations(deliveryPoints);
 
         List<LngLat> bestDeliveryOrder = null;
         List<LngLat> bestDeliveryPath = null;
@@ -394,11 +409,11 @@ public class Utils {
         return new Pair<>(bestDeliveryOrder, bestDeliveryPath);
     }
 
-    public static Pair<List<LngLat>, List<LngLat>> bestDeliveryOrderingPathEuclidean(LngLat servicePoint, List<LngLat> deliveryPoints, List<Raycasting.Line> lines) {
+    public static Pair<List<LngLat>, List<LngLat>> bestDeliveryOrderingPathEuclidean(LngLat servicePoint, ArrayList<LngLat> deliveryPoints, List<Raycasting.Line> lines) {
         // A valid delivery path must start and end at the service point
 
         // Generate all permutations of delivery points
-        List<List<LngLat>> permutations = generatePermutations(deliveryPoints);
+        ArrayList<ArrayList<LngLat>> permutations = generatePermutations(deliveryPoints);
 
         List<LngLat> bestDeliveryOrder = null;
         double shortestDistance = Double.MAX_VALUE;
@@ -419,5 +434,36 @@ public class Utils {
         }
 
         return new Pair<>(bestDeliveryOrder, pathFromPoints(bestDeliveryOrder, lines));
+    }
+
+    public static ArrayList<LngLat> bestDeliveryOrderingEuclidean(LngLat servicePoint, ArrayList<LngLat> deliveryPoints) {
+        // A valid delivery path must start and end at the service point
+
+        // Generate all permutations of delivery points
+        ArrayList<ArrayList<LngLat>> permutations = generatePermutations(deliveryPoints);
+
+        ArrayList<LngLat> bestDeliveryOrder = null;
+        double shortestDistance = Double.MAX_VALUE;
+
+        System.out.println(permutations);
+        System.out.println(servicePoint);
+
+        for (ArrayList<LngLat> ordering : permutations) {
+            System.out.println(ordering);
+            ordering.addFirst(servicePoint);
+            ordering.addLast(servicePoint);
+
+            double totalEstimatedDistance = 0;
+            for (int i = 0; i < ordering.size() - 1; i++) {
+                totalEstimatedDistance += Utils.getDistance(ordering.get(i), ordering.get(i + 1));
+            }
+
+            if (totalEstimatedDistance < shortestDistance) {
+                shortestDistance = totalEstimatedDistance;
+                bestDeliveryOrder = ordering;
+            }
+        }
+
+        return bestDeliveryOrder;
     }
 }
