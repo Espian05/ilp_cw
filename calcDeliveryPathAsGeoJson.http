@@ -1002,3 +1002,155 @@ Content-Type: application/json
     }
   }
 ]
+
+### POST Discord_test_6
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.75,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 13.5
+    },
+
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.941
+    }
+  },
+  {
+    "id": 2,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.15,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 10.5
+    },
+
+    "delivery": {
+      "lng": -3.189,
+      "lat": 55.951
+    }
+  },
+  {
+    "id": 3,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 6,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 5.0
+    },
+
+    "delivery": {
+      "lng": -3.183,
+      "lat": 55.95
+    }
+  },
+  {
+    "id": 4,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.65,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 15.0
+    },
+
+    "delivery": {
+      "lng": -3.213,
+      "lat": 55.94
+    }
+  },
+  {
+    "id": 5,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.75,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 13.5
+    },
+
+    "delivery": {
+      "lng": -3.2088,
+      "lat": 55.9799
+    }
+  },
+  {
+    "id": 6,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.15,
+      "cooling": false,
+      "heating": false,
+      "maxCost": 10.5
+    },
+
+    "delivery": {
+      "lng": -3.1845,
+      "lat": 55.9707
+    }
+  },
+  {
+    "id": 7,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.65,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 15.0
+    },
+
+    "delivery": {
+      "lng": -3.1795,
+      "lat": 55.9434
+    }
+  },
+  {
+    "id": 8,
+    "date": "2025-12-22",
+    "time": "14:30",
+    "requirements": {
+      "capacity": 0.75,
+      "cooling": false,
+      "heating": true,
+      "maxCost": 13.5
+    },
+
+    "delivery": {
+      "lng": -3.1655,
+      "lat": 55.9806
+    }
+  }
+]
+
+### POST Minimal medDispatchRec
+POST http://localhost:8080/api/v1/calcDeliveryPathAsGeoJson
+Content-Type: application/json
+
+[
+  {
+    "id": 1,
+    "requirements": {
+      "capacity": 1.0
+    },
+    "delivery": {
+      "lat": 55.94525,
+      "lng": -3.18895
+    }
+  }
+]

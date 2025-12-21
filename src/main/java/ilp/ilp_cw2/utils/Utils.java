@@ -261,7 +261,7 @@ public class Utils {
         return sets;
     };
 
-    private static final boolean queryAvailableDronesDebug = true;
+    private static final boolean queryAvailableDronesDebug = false;
 
     /**
      * Given some params, returns a list of drones that can complete this list of medDispatchRecords,
@@ -307,9 +307,16 @@ public class Utils {
                 for (Pair<DronesAvailability, Integer> droneAvailabilityPair : droneAvailabilityPairs) {
                     // For each availability on a given day in a given schedule
                     for (Availability availability : droneAvailabilityPair.first.getAvailability()) {
-                        if (!medDispatchRec.getDate().getDayOfWeek().equals(availability.getDayOfWeek())) continue;
-                        if (availability.getFrom().isAfter(medDispatchRec.getTime())) continue;
-                        if (availability.getUntil().isBefore(medDispatchRec.getTime())) continue;
+                        // Check for day of week
+                        if (!medDispatchRec.isDateNull())
+                            if (!medDispatchRec.getDate().getDayOfWeek().equals(availability.getDayOfWeek())) continue;
+
+                        // Check from and until times
+                        if (!medDispatchRec.isTimeNull()) {
+                            if (availability.getFrom().isAfter(medDispatchRec.getTime())) continue;
+                            if (availability.getUntil().isBefore(medDispatchRec.getTime())) continue;
+                        }
+
                         matchesThisRecord = true;
                         servicePointId = droneAvailabilityPair.second;
                         break;
@@ -379,7 +386,8 @@ public class Utils {
                 if (medDispatchRec.getRequirements().getMaxCost() != null) totalCostNeeded = true;
             }
 
-            double totalCost = lowestDistance / 0.00015;
+            double totalEstimatedMoves = lowestDistance / 0.00015;
+            double totalCost = totalEstimatedMoves;
             totalCost *= drone.capability.getCostPerMove();
             totalCost += drone.capability.getCostInitial();
             totalCost += drone.capability.getCostFinal();
@@ -387,11 +395,9 @@ public class Utils {
             double proRataCost = totalCost / medDispatchRecs.size();
             drone.estimatedCost = proRataCost;
 
-            double totalEstimatedMoves = lowestDistance / 0.00015;
-
             if (totalEstimatedMoves > drone.capability.getMaxMoves()) {
                 if (queryAvailableDronesDebug)
-                    System.out.println("Estimated move cost too high (" + totalEstimatedMoves + " > " + drone.capability.getMaxMoves() + ")");
+                    System.out.println("Estimated number of moves is too high (" + totalEstimatedMoves + " > " + drone.capability.getMaxMoves() + ")");
                 return false;
             }
 
@@ -504,11 +510,11 @@ public class Utils {
         ArrayList<LngLat> bestDeliveryOrder = null;
         double shortestDistance = Double.MAX_VALUE;
 
-        System.out.println(permutations);
-        System.out.println(servicePoint);
+        //System.out.println(permutations);
+        //System.out.println(servicePoint);
 
         for (ArrayList<LngLat> ordering : permutations) {
-            System.out.println(ordering);
+            //System.out.println(ordering);
             ordering.addFirst(servicePoint);
             ordering.addLast(servicePoint);
 

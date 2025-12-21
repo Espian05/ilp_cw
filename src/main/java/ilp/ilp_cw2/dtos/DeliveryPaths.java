@@ -1,6 +1,5 @@
 package ilp.ilp_cw2.dtos;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
