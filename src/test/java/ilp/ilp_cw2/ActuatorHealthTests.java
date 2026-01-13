@@ -18,9 +18,4 @@ public class ActuatorHealthTests extends TestTemplate {
     void CorrectResponse_ValidGet_ReturnsStatus200() {
         assert(restTemplate.getForEntity(url, String.class).getStatusCode().value() == 200);
     }
-
-    @Test
-    void Purposfully_Failing_Test() {
-        assert(false);
-    }
 }
