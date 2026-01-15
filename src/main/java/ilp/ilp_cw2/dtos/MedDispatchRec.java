@@ -3,12 +3,14 @@ package ilp.ilp_cw2.dtos;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ilp.ilp_cw2.types.LngLat;
+import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 
 @Data
+@Builder
 public class MedDispatchRec {
     // ID of the request
     @JsonProperty(value = "id")
