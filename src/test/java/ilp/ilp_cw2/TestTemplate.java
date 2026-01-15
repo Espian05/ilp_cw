@@ -29,7 +29,7 @@ public abstract class TestTemplate {
      - Valid input -> correct output value
         (if boolean output, test for both types. If numerical, just one for now)
      - Valid input -> correct output code
-     - Test anything that would result in an "out of range" or "invalud value error"
+     - Test anything that would result in an "out of range" or "invalid value error"
         (basically anything that makes an internal "isValid" call return false)
      - Test passing null values wherever possible
     */
