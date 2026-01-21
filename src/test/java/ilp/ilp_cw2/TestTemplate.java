@@ -22,8 +22,6 @@ public abstract class TestTemplate {
     @BeforeEach
     protected abstract void setEndpoint();
 
-    private foo = bar
-
     /*
     General testing strategy (for me)
      - Valid input -> correct output value
