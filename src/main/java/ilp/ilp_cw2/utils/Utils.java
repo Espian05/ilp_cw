@@ -531,4 +531,38 @@ public class Utils {
 
         return bestDeliveryOrder;
     }
+
+    /**
+     * Generates a random point within Edinburgh
+     * @return The point
+     */
+    public static LngLat generateRandomPoint() {
+        // Ranges defining a rectangle of Edinburgh for test points
+        double minLng = -3.30232720254088;
+        double maxLng = -3.07069927106582;
+        double lngDifference = maxLng - minLng;
+
+        double minLat = 55.902444794164666;
+        double maxLat = 55.99505311585057;
+        double latDifference = maxLat - minLat;
+
+        double randomLng = minLng + Math.random() * lngDifference;
+        double randomLat = minLat + Math.random() * latDifference;
+        return new LngLat(randomLng, randomLat);
+    }
+
+    /**
+     * Generates a number of random points within Edinburgh
+     * @param numberOfPoints The number of points to generate
+     * @return The points
+     */
+    public static ArrayList<LngLat> generateRandomPoints(int numberOfPoints) {
+        ArrayList<LngLat> points = new ArrayList<>();
+
+        for (int i = 0; i < numberOfPoints; i++) {
+            points.add(generateRandomPoint());
+        }
+
+        return points;
+    }
 }

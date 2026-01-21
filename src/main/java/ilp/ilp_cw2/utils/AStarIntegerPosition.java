@@ -143,7 +143,6 @@ public class AStarIntegerPosition {
             if (closedSet.contains(current.position)) continue;
             // If above max cost, just skip this node
             if (current.totalCost > maxCost) {
-                System.out.println("MAX COST EXCEEDED, AHHHHHHHHHH");
                 continue;
             }
 

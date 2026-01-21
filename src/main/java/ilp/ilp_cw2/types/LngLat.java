@@ -3,11 +3,9 @@ package ilp.ilp_cw2.types;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.websocket.OnError;
+import ilp.ilp_cw2.utils.Utils;
 import lombok.Builder;
 import lombok.Data;
-
-import java.util.Objects;
 
 @Data
 @Builder
@@ -62,6 +60,33 @@ public class LngLat {
     @JsonIgnore
     public LngLat add(LngLat other) {
         return new LngLat(lng + other.lng, lat + other.lat);
+    }
+
+    /**
+     * Returns magnitude of this vector
+     * @return Magnitude
+     */
+    @JsonIgnore
+    public double magnitude() {
+        return Math.sqrt(lng * lng + lat * lat);
+    }
+
+    /**
+     * Returns normalised version of this vector
+     * @return Normalised vector
+     */
+    @JsonIgnore
+    public LngLat normalised() {;
+        return this.scale(1 / this.magnitude());
+    }
+
+    /**
+     * Computes the dot product of this and a given vector
+     * @param other Other vector
+     * @return The dot product
+     */
+    public double dotProduct(LngLat other) {
+        return this.lng * other.lng + this.lat * other.lat;
     }
 
     @JsonIgnore

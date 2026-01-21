@@ -1,35 +1,28 @@
 package ilp.ilp_cw2;
 
-import ilp.ilp_cw2.dtos.MedDispatchRec;
-import ilp.ilp_cw2.dtos.Requirements;
+import ilp.ilp_cw2.dtos.*;
 import ilp.ilp_cw2.types.LngLat;
+import ilp.ilp_cw2.utils.Utils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.RepetitionInfo;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 
 public class CalcDeliveryPathTests extends TestTemplate {
-    @BeforeEach
-    protected void setEndpoint() {
-        url += "/api/v1/calcDeliveryPathAsGeoJson";
+    private final String ilpEndpoint;
+
+    @Autowired
+    CalcDeliveryPathTests(String ilpEndpoint) {
+        this.ilpEndpoint = ilpEndpoint;
     }
 
-    @RepeatedTest(100)
-    void QueryTakesLessThan30Seconds(RepetitionInfo repetitionInfo) {
-        long startTime = System.currentTimeMillis();
-
-        ArrayList<MedDispatchRec> req = generateRandomDispatchRecs(5);
-        String geoJson = restTemplate.postForEntity(url, req, String.class).getBody();
-
-        long endTime = System.currentTimeMillis();
-        long duration = endTime - startTime;
-
-        System.out.println("Test " + repetitionInfo.getCurrentRepetition() + " of " + repetitionInfo.getTotalRepetitions());
-        System.out.println("Test took: " + duration / 1000.0 + "s");
-        assert(duration < 30000);
+    @BeforeEach
+    protected void setEndpoint() {
+        url += "/api/v1/calcDeliveryPath";
     }
 
     /**
@@ -38,7 +31,7 @@ public class CalcDeliveryPathTests extends TestTemplate {
      * @return The dispatch recs
      */
     ArrayList<MedDispatchRec> generateRandomDispatchRecs(int numberOfDispatchRecs) {
-        ArrayList<LngLat> randomPoints = generateRandomPoints(numberOfDispatchRecs);
+        ArrayList<LngLat> randomPoints = Utils.generateRandomPoints(numberOfDispatchRecs);
 
         ArrayList<MedDispatchRec> dispatchRecs = new ArrayList<>();
         for (int i = 0; i < numberOfDispatchRecs; i++) {
@@ -55,30 +48,75 @@ public class CalcDeliveryPathTests extends TestTemplate {
         return dispatchRecs;
     }
 
-    /**
-     * Generates a number of random points within Edinburgh
-     * @param numberOfPoints The number of points to generate
-     * @return The points
-     */
-    ArrayList<LngLat> generateRandomPoints(int numberOfPoints) {
-        // Ranges defining a rectangle of Edinburgh for test points
-        double minLng = -3.30232720254088;
-        double maxLng = -3.07069927106582;
-        double lngDifference = maxLng - minLng;
+    @RepeatedTest(10)
+    void QueryTakesLessThan30Seconds(RepetitionInfo repetitionInfo) {
+        long startTime = System.currentTimeMillis();
 
-        double minLat = 55.902444794164666;
-        double maxLat = 55.99505311585057;
-        double latDifference = maxLat - minLat;
+        ArrayList<MedDispatchRec> req = generateRandomDispatchRecs(9);
+        restTemplate.postForEntity(url, req, DeliveryPaths.class).getBody();
 
-        ArrayList<LngLat> points = new ArrayList<>();
+        long endTime = System.currentTimeMillis();
+        long duration = endTime - startTime;
 
-        for (int i = 0; i < numberOfPoints; i++) {
-            double randomLng = minLng + Math.random() * lngDifference;
-            double randomLat = minLat + Math.random() * latDifference;
-            LngLat randomLngLat = new LngLat(randomLng, randomLat);
-            points.add(randomLngLat);
+        System.out.println("Test " + repetitionInfo.getCurrentRepetition() + " of " + repetitionInfo.getTotalRepetitions());
+        System.out.println("Test took: " + duration / 1000.0 + "s");
+        assert(duration < 30000);
+    }
+
+    @RepeatedTest(10)
+    void DeliversAllMedDispatchRecs(RepetitionInfo repetitionInfo) {
+        ArrayList<MedDispatchRec> req = generateRandomDispatchRecs(5);
+        DeliveryPaths deliveryPaths = restTemplate.postForEntity(url, req, DeliveryPaths.class).getBody();
+
+        // If no delivery paths, assume it was impossible and return
+        // (not part of this test to check if it was possible)
+        if (deliveryPaths == null) {
+            System.out.println("No delivery paths found for test " + repetitionInfo.getCurrentRepetition());
+            return;
         }
 
-        return points;
+        // Remove any medDispatches that have been delivered
+        for (DronePath dronePath : deliveryPaths.dronePaths) {
+            for  (Delivery delivery : dronePath.deliveries) {
+                LngLat lastPos = delivery.flightPath.getLast();
+                LngLat secondLastPos = delivery.flightPath.get(delivery.flightPath.size() - 2);
+                assert(lastPos.equals(secondLastPos));
+                for (MedDispatchRec medDispatchRec : req) {
+                    if (Utils.isClose(lastPos, medDispatchRec.getDelivery())) {
+                        req.remove(medDispatchRec);
+                        break;
+                    }
+                }
+            }
+        }
+
+        assert(req.isEmpty());
+    }
+
+    @RepeatedTest(10)
+    void PathStartsAndEndsAtSameServicePoint() {
+        // Get service points to check against
+        ServicePoint[] servicePoints = restTemplate.getForObject(ilpEndpoint + "/service-points", ServicePoint[].class);
+
+        ArrayList<MedDispatchRec> req = generateRandomDispatchRecs(5);
+        DeliveryPaths deliveryPaths = restTemplate.postForEntity(url, req, DeliveryPaths.class).getBody();
+
+        // If no path returned, assume correct (path must not have been possible)
+        if (deliveryPaths == null) return;
+
+        // If the distance between the start and end points is near the same
+        // service point, this is correct
+        LngLat startPoint = deliveryPaths.dronePaths.getFirst().deliveries[0].flightPath.getFirst();
+        int lastDeliveryIndex = deliveryPaths.dronePaths.getLast().deliveries.length - 1;
+        LngLat endPoint = deliveryPaths.dronePaths.getLast().deliveries[lastDeliveryIndex].flightPath.getLast();
+
+        boolean bothClose = false;
+        for (ServicePoint servicePoint : servicePoints) {
+            if (!Utils.isClose(servicePoint.location, startPoint)) continue;
+            if (!Utils.isClose(servicePoint.location, endPoint)) continue;
+            bothClose = true;
+            break;
+        }
+        assert(bothClose);
     }
 }
