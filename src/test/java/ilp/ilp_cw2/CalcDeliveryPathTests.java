@@ -104,19 +104,22 @@ public class CalcDeliveryPathTests extends TestTemplate {
         // If no path returned, assume correct (path must not have been possible)
         if (deliveryPaths == null) return;
 
-        // If the distance between the start and end points is near the same
-        // service point, this is correct
-        LngLat startPoint = deliveryPaths.dronePaths.getFirst().deliveries[0].flightPath.getFirst();
-        int lastDeliveryIndex = deliveryPaths.dronePaths.getLast().deliveries.length - 1;
-        LngLat endPoint = deliveryPaths.dronePaths.getLast().deliveries[lastDeliveryIndex].flightPath.getLast();
+        // Check all individual drone delivery paths
+        for (DronePath dronePath : deliveryPaths.dronePaths) {
+            // If the distance between the start and end points is near the same
+            // service point, this is correct
+            LngLat startPoint = dronePath.deliveries[0].flightPath.getFirst();
+            int lastDeliveryIndex = dronePath.deliveries.length - 1;
+            LngLat endPoint = dronePath.deliveries[lastDeliveryIndex].flightPath.getLast();
 
-        boolean bothClose = false;
-        for (ServicePoint servicePoint : servicePoints) {
-            if (!Utils.isClose(servicePoint.location, startPoint)) continue;
-            if (!Utils.isClose(servicePoint.location, endPoint)) continue;
-            bothClose = true;
-            break;
+            boolean bothClose = false;
+            for (ServicePoint servicePoint : servicePoints) {
+                if (!Utils.isClose(servicePoint.location, startPoint)) continue;
+                if (!Utils.isClose(servicePoint.location, endPoint)) continue;
+                bothClose = true;
+                break;
+            }
+            assert(bothClose);
         }
-        assert(bothClose);
     }
 }
