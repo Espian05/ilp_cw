@@ -18,4 +18,9 @@ public class UidTests extends TestTemplate {
     public void CorrectResponse_ValidGet_ReturnsStatus200() {
         assert(restTemplate.getForEntity(url, String.class).getStatusCode().value() == 200);
     }
+
+    @Test
+    public void AssertFalse() {
+        assert(false);
+    }
 }
